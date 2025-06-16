@@ -29,10 +29,10 @@ public class KasiKotasApplication {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                // Allow all origins, methods, and headers for development purposes.
-                // TODO: In production, narrow down allowed origins (e.g., "http://localhost:3000", "https://yourfrontend.com")
+                // IMPORTANT: In production, replace "*" with the actual URL(s) of your deployed frontend.
+                // Example: .allowedOrigins("https://your-frontend-app.onrender.com", "http://localhost:3000")
                 registry.addMapping("/**") // Apply CORS to all endpoints
-                        .allowedOrigins("*") // Allow all origins (for dev)
+                        .allowedOrigins("*") // Allow all origins (for development)
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Allowed HTTP methods
                         .allowedHeaders("*") // Allow all headers
                         .allowCredentials(false) // Do not allow credentials (e.g., cookies, auth headers)
