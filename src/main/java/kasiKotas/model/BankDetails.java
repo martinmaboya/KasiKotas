@@ -36,6 +36,9 @@ public class BankDetails {
     @Column(nullable = false, unique = true) // Account number should likely be unique
     private String accountNumber;
 
+    @Column // Moved shapId here, after accountNumber. It's optional (nullable by default).
+    private String shapId;
+
     @Column(nullable = false)
     private String branchCode;
 

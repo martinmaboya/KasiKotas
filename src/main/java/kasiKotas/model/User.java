@@ -2,39 +2,36 @@
 package kasiKotas.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import java.util.List;
-import java.util.ArrayList; // For initializing collections
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Import for JsonIgnoreProperties
+import lombok.Data; // For boilerplate code (getters, setters, etc.)
+import lombok.NoArgsConstructor; // For no-argument constructor
+import lombok.AllArgsConstructor; // For all-argument constructor
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // For JSON serialization issues
+import java.util.List; // For the one-to-many relationship with Order
 
 /**
- * Represents a user (customer or admin) in the KasiKotas e-commerce system.
- * This entity will store user details and their associated orders.
+ * Represents a user in the KasiKotas system, who can be a customer or an admin.
+ * This is a JPA Entity, mapping to a 'users' table in the database.
  *
- * @JsonIgnoreProperties is added to break potential infinite recursion during JSON serialization.
- * When a User object is serialized, its 'orders' list will be included. If Order
- * then tries to serialize its 'user', it would create a loop. By ignoring 'user'
- * when serializing 'orders' (in the Order entity), we prevent this.
+ * Includes optimistic locking for concurrent updates and a custom constructor
+ * for creating a user object with only an ID, useful for associations.
  */
-@Entity
-@Table(name = "users") // Maps to the 'users' table in the database
-@Data // Lombok: Generates getters, setters, toString, equals, hashCode
-@NoArgsConstructor // Lombok: Generates a no-argument constructor
+@Entity // Marks this class as a JPA entity
+@Table(name = "users") // Specifies the table name in the database
+@Data // Lombok: Generates getters, setters, toString, equals, and hashCode methods
+@NoArgsConstructor // Lombok: Generates a no-argument constructor (required by JPA)
 @AllArgsConstructor // Lombok: Generates a constructor with all fields
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "orders"}) // Ignore Hibernate's proxy fields and 'orders' to prevent infinite recursion
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id // Marks this field as the primary key
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // Configures auto-incrementing ID
     private Long id;
 
-    @Column(nullable = false, unique = true) // Email must be unique
+    @Column(nullable = false, unique = true) // Email must be unique and not null
     private String email;
 
     @Column(nullable = false)
-    private String password; // Store hashed passwords, NOT plain text!
+    private String password; // IMPORTANT: In real apps, store hashed passwords!
 
     @Column(nullable = false)
     private String firstName;
@@ -42,27 +39,39 @@ public class User {
     @Column(nullable = false)
     private String lastName;
 
-    private String address; // Shipping address
+    private String address; // Optional: Can be used for a general residential address
+    private String roomNumber; // Specific to student accommodation, etc.
     private String phoneNumber;
-    private String roomNumber; // Added for frontend consistency (Room Number)
 
-
-    @Enumerated(EnumType.STRING) // Stores enum as String in DB
+    @Enumerated(EnumType.STRING) // Stores the enum name (e.g., "CUSTOMER", "ADMIN") as a string in the DB
     @Column(nullable = false)
     private UserRole role; // Role of the user (e.g., CUSTOMER, ADMIN)
 
-    // One-to-Many relationship with Order: One user can have many orders
-    // 'mappedBy' indicates the field in the Order entity that owns the relationship.
-    // 'cascade = CascadeType.ALL' means that if a user is deleted, all their orders are also deleted.
-    // 'orphanRemoval = true' ensures that if an order is removed from the user's order list, it's also removed from the DB.
-    // @JsonIgnoreProperties is crucial here: when serializing a User, we don't want to
-    // follow the 'orders' list back to 'order.user' as that would cause infinite recursion.
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("user") // Ignore the 'user' property when serializing 'Order' from 'User'
-    private List<Order> orders = new ArrayList<>(); // Initialize to prevent NullPointerExceptions
+    @Version // For optimistic locking to handle concurrent updates gracefully
+    private Long version;
+
+    // One-to-Many relationship with orders.
+    // 'mappedBy' indicates that the 'user' field in the Order entity owns the relationship.
+    // FetchType.LAZY is used to prevent fetching all orders whenever a user is loaded, improving performance.
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    // @JsonIgnoreProperties is necessary here to prevent infinite recursion when serializing User -> Order -> User
+    @JsonIgnoreProperties("user") // Ignore the 'user' field within the 'orders' list when serializing User
+    private List<Order> orders;
 
     /**
-     * Enum for user roles.
+     * Custom constructor to create a User object with only an ID.
+     * This is useful for associating an Order with a User when only the User's ID is known,
+     * without fetching the full User entity from the database.
+     * JPA will often use a proxy if only the ID is provided, and fill in details later.
+     * @param id The ID of the user.
+     */
+    public User(Long id) {
+        this.id = id;
+    }
+
+    /**
+     * Enum for defining user roles.
+     * Can be easily extended for more roles (e.g., DELIVERY_PERSON).
      */
     public enum UserRole {
         CUSTOMER,

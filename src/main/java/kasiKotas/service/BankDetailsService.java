@@ -51,6 +51,7 @@ public class BankDetailsService {
         if (!StringUtils.hasText(bankDetails.getBankName()) ||
                 !StringUtils.hasText(bankDetails.getAccountName()) ||
                 !StringUtils.hasText(bankDetails.getAccountNumber()) ||
+                !StringUtils.hasText(bankDetails.getShapId()) ||
                 !StringUtils.hasText(bankDetails.getBranchCode())) {
             throw new IllegalArgumentException("All bank details fields (bank name, account name, account number, branch code) are required.");
         }
@@ -66,6 +67,7 @@ public class BankDetailsService {
                 detailsToUpdate.setBankName(bankDetails.getBankName());
                 detailsToUpdate.setAccountName(bankDetails.getAccountName());
                 detailsToUpdate.setAccountNumber(bankDetails.getAccountNumber());
+                detailsToUpdate.setShapId(bankDetails.getShapId());
                 detailsToUpdate.setBranchCode(bankDetails.getBranchCode());
                 return bankDetailsRepository.save(detailsToUpdate);
             }
@@ -80,6 +82,7 @@ public class BankDetailsService {
             detailsToUpdate.setBankName(bankDetails.getBankName());
             detailsToUpdate.setAccountName(bankDetails.getAccountName());
             detailsToUpdate.setAccountNumber(bankDetails.getAccountNumber());
+            detailsToUpdate.setShapId(bankDetails.getShapId());
             detailsToUpdate.setBranchCode(bankDetails.getBranchCode());
             return bankDetailsRepository.save(detailsToUpdate);
         } else {

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map; // For status update request and create order request body
+import java.util.ArrayList; // For explicitly creating ArrayLists
 
 /**
  * REST Controller for managing Order related operations.
@@ -32,7 +33,9 @@ public class OrderController {
     /**
      * Creates a new order.
      * POST /api/orders
-     * @param orderRequest An object containing userId, shippingAddress, and a list of orderItems (with productId and quantity).
+     * @param orderRequest An object containing userId, shippingAddress, paymentMethod,
+     * and a list of orderItems (with productId, quantity, customizationNotes,
+     * selectedExtrasJson, and selectedSaucesJson).
      * @return ResponseEntity with the created Order (201 Created) or 400 Bad Request if validation fails.
      */
     @PostMapping
@@ -40,10 +43,17 @@ public class OrderController {
         try {
             Long userId = ((Number) orderRequest.get("userId")).longValue();
             String shippingAddress = (String) orderRequest.get("shippingAddress");
+            String paymentMethod = (String) orderRequest.get("paymentMethod"); // NEW: Extract paymentMethod
             List<Map<String, Object>> itemsRaw = (List<Map<String, Object>>) orderRequest.get("orderItems");
 
+            // Construct the Order object expected by the OrderService
+            Order newOrder = new Order();
+            newOrder.setUser(new User(userId)); // Set a User object with only the ID
+            newOrder.setShippingAddress(shippingAddress);
+            newOrder.setPaymentMethod(paymentMethod); // NEW: Set payment method
+
             // Convert raw item maps to OrderItem objects
-            List<OrderItem> orderItems = new java.util.ArrayList<>();
+            List<OrderItem> orderItems = new ArrayList<>();
             for (Map<String, Object> itemRaw : itemsRaw) {
                 OrderItem item = new OrderItem();
                 Map<String, Object> productMap = (Map<String, Object>) itemRaw.get("product");
@@ -55,11 +65,14 @@ public class OrderController {
                 item.setQuantity(((Number) itemRaw.get("quantity")).intValue());
                 item.setCustomizationNotes((String) itemRaw.get("customizationNotes"));
                 item.setSelectedExtrasJson((String) itemRaw.get("selectedExtrasJson"));
+                item.setSelectedSaucesJson((String) itemRaw.get("selectedSaucesJson")); // NEW: Extract selectedSaucesJson
 
                 orderItems.add(item);
             }
+            newOrder.setOrderItems(orderItems); // Set the list of prepared order items
 
-            Order savedOrder = orderService.createOrder(userId, orderItems, shippingAddress);
+            // Call the service method with the fully constructed Order object
+            Order savedOrder = orderService.createOrder(newOrder);
 
             // --- IMPORTANT: Ensure lazy-loaded associations are initialized before returning ---
             // This explicitly loads the User and Product for all order items within the transactional context
@@ -72,6 +85,9 @@ public class OrderController {
                 // Access a property to force initialization of User proxy
                 // If it's still null here, there's a problem earlier in the service or data mapping.
                 savedOrder.getUser().getId();
+                savedOrder.getUser().getFirstName(); // Initialize other user details for response
+                savedOrder.getUser().getLastName();
+                savedOrder.getUser().getEmail();
             }
             if (savedOrder.getOrderItems() != null) {
                 savedOrder.getOrderItems().forEach(item -> {
@@ -105,6 +121,9 @@ public class OrderController {
         orders.forEach(order -> {
             if (order.getUser() != null) {
                 order.getUser().getId(); // Force initialize user
+                order.getUser().getFirstName(); // Initialize other user properties
+                order.getUser().getLastName();
+                order.getUser().getEmail();
             }
             if (order.getOrderItems() != null) {
                 order.getOrderItems().forEach(orderItem -> {
@@ -130,6 +149,9 @@ public class OrderController {
                     // Ensure user and products are initialized before returning
                     if (order.getUser() != null) {
                         order.getUser().getId();
+                        order.getUser().getFirstName(); // Initialize other user properties
+                        order.getUser().getLastName();
+                        order.getUser().getEmail();
                     }
                     if (order.getOrderItems() != null) {
                         order.getOrderItems().forEach(item -> {
@@ -157,6 +179,9 @@ public class OrderController {
             orders.forEach(order -> {
                 if (order.getUser() != null) {
                     order.getUser().getId();
+                    order.getUser().getFirstName(); // Initialize other user properties
+                    order.getUser().getLastName();
+                    order.getUser().getEmail();
                 }
                 if (order.getOrderItems() != null) {
                     order.getOrderItems().forEach(item -> {
@@ -223,7 +248,7 @@ public class OrderController {
      */
     @GetMapping("/count") // NEW: Specific endpoint for counting orders
     public ResponseEntity<Long> countTotalOrders() {
-        long count = orderService.countTotalOrders();
+        long count = orderService.getTotalOrderCount(); // Using the service method
         return ResponseEntity.ok(count);
     }
 }
