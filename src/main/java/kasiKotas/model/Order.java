@@ -85,9 +85,8 @@ public class Order {
         PROCESSING,
         DELIVERED,
         CANCELLED,
-        READY,
         COLLECTED, // For collection orders
-        SHIPPED    // For delivery orders
+        READY,    // For delivery orders
     }
 
     /**
