@@ -59,6 +59,13 @@
                     <scope>runtime</scope>
                 </dependency>
 
+                <dependency>
+                    <groupId>com.cloudinary</groupId>
+                    <artifactId>cloudinary-http44</artifactId>
+                    <version>1.29.0</version>
+                </dependency>
+
+
                 <!-- MySQL Connector/J Dependency -->
                 <dependency>
                     <groupId>org.postgresql</groupId>
