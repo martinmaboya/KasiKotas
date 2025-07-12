@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Collections;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 public class AuthController {
 
     @Autowired
