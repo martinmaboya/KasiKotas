@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
+import java.io.IOException; // Keep this import
 import java.util.List;
 import java.util.Optional;
 
@@ -17,9 +17,6 @@ import java.util.Optional;
 public class ProductService {
 
     private final ProductRepository productRepository;
-
-    @Autowired
-    private CloudinaryService cloudinaryService;
 
     @Autowired
     public ProductService(ProductRepository productRepository) {
@@ -34,22 +31,25 @@ public class ProductService {
         return productRepository.findById(id);
     }
 
-    public Product createProduct(Product product, MultipartFile imageFile) {
+    public Product createProduct(Product product, MultipartFile imageFile) { // Removed 'throws IOException' from signature
         validateProduct(product);
 
         if (imageFile != null && !imageFile.isEmpty()) {
-            try {
-                String imageUrl = cloudinaryService.uploadFile(imageFile);
-                product.setImageUrl(imageUrl); // ✅ Store Cloudinary URL
+            try { // Add try-catch block here
+                product.setImageData(imageFile.getBytes()); // This line can throw IOException
+                product.setImageContentType(imageFile.getContentType());
+                product.setImageName(imageFile.getOriginalFilename());
             } catch (IOException e) {
-                throw new IllegalArgumentException("Image upload failed: " + e.getMessage(), e);
+                // Wrap the IOException in an IllegalArgumentException (or a custom runtime exception)
+                // This makes it a runtime exception, so it doesn't need to be declared.
+                throw new IllegalArgumentException("Failed to read image file data: " + e.getMessage(), e);
             }
         }
 
         return productRepository.save(product);
     }
 
-    public Optional<Product> updateProduct(Long id, Product productDetails, MultipartFile imageFile) {
+    public Optional<Product> updateProduct(Long id, Product productDetails, MultipartFile imageFile) { // Removed 'throws IOException' from signature
         return productRepository.findById(id).map(existingProduct -> {
             validateProduct(productDetails);
 
@@ -59,16 +59,19 @@ public class ProductService {
             existingProduct.setStock(productDetails.getStock());
 
             if (imageFile != null && !imageFile.isEmpty()) {
-                try {
-                    String imageUrl = cloudinaryService.uploadFile(imageFile);
-                    existingProduct.setImageUrl(imageUrl); // ✅ Update with Cloudinary URL
+                try { // Add try-catch block here
+                    existingProduct.setImageData(imageFile.getBytes()); // This line can throw IOException
+                    existingProduct.setImageContentType(imageFile.getContentType());
+                    existingProduct.setImageName(imageFile.getOriginalFilename());
                 } catch (IOException e) {
-                    throw new IllegalArgumentException("Image upload failed: " + e.getMessage(), e);
+                    // Wrap the IOException in an IllegalArgumentException (or a custom runtime exception)
+                    throw new IllegalArgumentException("Failed to read image file data for update: " + e.getMessage(), e);
                 }
-            } else if (StringUtils.hasText(productDetails.getImageUrl())) {
-                existingProduct.setImageUrl(productDetails.getImageUrl());
+            } else if (imageFile != null && imageFile.isEmpty()) {
+                existingProduct.setImageData(null);
+                existingProduct.setImageContentType(null);
+                existingProduct.setImageName(null);
             }
-
             return productRepository.save(existingProduct);
         });
     }
@@ -90,6 +93,21 @@ public class ProductService {
             }
             return null;
         });
+    }
+
+    public Optional<byte[]> getImageData(Long productId) {
+        return productRepository.findById(productId)
+                .map(Product::getImageData);
+    }
+
+    public Optional<String> getImageContentType(Long productId) {
+        return productRepository.findById(productId)
+                .map(Product::getImageContentType);
+    }
+
+    public Optional<String> getImageName(Long productId) {
+        return productRepository.findById(productId)
+                .map(Product::getImageName);
     }
 
     private void validateProduct(Product product) {
