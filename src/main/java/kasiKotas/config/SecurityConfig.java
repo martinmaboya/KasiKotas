@@ -31,6 +31,7 @@ package kasiKotas.config;
                         .csrf(csrf -> csrf.disable())
                         .authorizeHttpRequests(authz -> authz
                                 .requestMatchers(
+                                        // ... keep your existing permitAll paths ...
                                         "/",
                                         "/home",
                                         "/auth/**",
@@ -40,7 +41,9 @@ package kasiKotas.config;
                                         "/api/products",
                                         "/product-images/**",
                                         "/api/extras",
-                                        "/api/sauces"
+                                        "/api/sauces",
+                                        // ADD THIS NEW LINE FOR YOUR API AUTH ENDPOINTS
+                                        "/api/auth/**" // This will cover /api/auth/login and any other /api/auth paths
                                 ).permitAll()
 
                                 .anyRequest().authenticated()
