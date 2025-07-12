@@ -30,17 +30,20 @@ package kasiKotas.config;
                     http
                         .csrf(csrf -> csrf.disable())
                         .authorizeHttpRequests(authz -> authz
-                            .requestMatchers(
-                                "/auth/**",
-                                "/public/**",
-                                "/register",
-                                "/api/users/register",
-                                    "/api/products",
-                                    "/product-images/**",
-                                    "/api/extras",
-                                    "/api/sauces"
-                            ).permitAll()
-                            .anyRequest().authenticated()
+                                .requestMatchers(
+                                        "/",
+                                        "/home",
+                                        "/auth/**",
+                                        "/public/**",
+                                        "/register",
+                                        "/api/users/register",
+                                        "/api/products",
+                                        "/product-images/**",
+                                        "/api/extras",
+                                        "/api/sauces"
+                                ).permitAll()
+
+                                .anyRequest().authenticated()
                         )
                         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
