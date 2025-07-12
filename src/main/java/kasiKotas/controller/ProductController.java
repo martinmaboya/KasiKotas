@@ -38,7 +38,7 @@
                         .orElseGet(() -> ResponseEntity.notFound().build());
             }
 
-            @PreAuthorize("hasRole('ADMIN')")
+
             @PostMapping(consumes = {"multipart/form-data"})
             public ResponseEntity<Product> createProduct(
                     @RequestParam("name") String name,
