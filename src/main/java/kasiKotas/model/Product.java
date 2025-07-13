@@ -1,11 +1,11 @@
 // src/main/java/kasiKotas/model/Product.java
-package kasiKotas.model;
+package kasiKotas.model; // This specifies the package for this class
 
-import jakarta.persistence.*;
-import lombok.Data;
+import jakarta.persistence.*; // JPA annotations for database mapping
+import lombok.Data; // Lombok for boilerplate code reduction
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Import for JsonIgnoreProperties
 
 /**
  * Represents a single product (Kota) in the e-commerce system.
@@ -20,45 +20,33 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * lazy-loads proxy objects (e.g., if a Product is fetched as a proxy within an OrderItem
  * and then directly serialized without being fully initialized).
  */
-@Entity
-@Table(name = "products")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Entity // Marks this class as a JPA entity. Hibernate will recognize it and map it to a database table.
+@Table(name = "products") // Specifies the actual table name in the database. It will be "products".
+@Data // Lombok: Generates boilerplate code (getters, setters, toString, equals, hashCode)
+@NoArgsConstructor // Lombok: Generates a public no-argument constructor, required by JPA.
+@AllArgsConstructor // Lombok: Generates a constructor with all fields, useful for creating instances with data.
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // NEW: Ignore Hibernate's internal proxy fields during JSON serialization
 public class Product {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Id // Marks this field as the primary key of the entity.
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // Configures the primary key to be auto-incremented by the database.
+    // IDENTITY is suitable for MySQL.
+    private Long id; // Unique identifier for each product.
+
+    @Column(nullable = false) // Specifies that this database column cannot contain NULL values.
+    private String name; // The name of the Kota (e.g., "Classic Kota", "Vegetarian Kota"). This field is mandatory.
 
     @Column(nullable = false)
-    private String name;
+    private String description; // A detailed description of the Kota's ingredients and flavor. This field is mandatory.
 
     @Column(nullable = false)
-    private String description;
+    private Double price; // The price of the Kota. This field is mandatory.
+
+    private String imageUrl; // An optional URL to an image of the Kota. Can be null.
 
     @Column(nullable = false)
-    private Double price;
-
-    // --- OLD: private String imageUrl; // This field would be removed or repurposed
-
-    @Lob
-    @Column(name = "image_data")
-    private byte[] imageData;
-
-
-    // Optional: Store the content type (e.g., "image/jpeg", "image/png")
-    // This is crucial when serving the image back to the client via HTTP
-    private String imageContentType;
-
-    // Optional: Store the original filename (useful for display or debugging)
-    private String imageName;
-    // --- END NEW FIELDS ---
-
-    @Column(nullable = false)
-    private Integer stock;
+    private Integer stock; // The quantity of this Kota currently available in stock. This field is mandatory.
 
     // Note: Lombok automatically generates the getters and setters, so you don't
-    // need to write them manually in this file.
+    // need to write them manually in this file. For example, getName(), setName(String name), etc.
 }
