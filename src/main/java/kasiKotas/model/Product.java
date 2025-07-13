@@ -43,12 +43,10 @@ public class Product {
 
     // --- OLD: private String imageUrl; // This field would be removed or repurposed
 
-    // --- NEW FIELDS FOR STORING IMAGE IN DATABASE ---
-    @Lob // Indicates that this field can store large objects (BLOBs)
-    // For MySQL: columnDefinition = "LONGBLOB" is often recommended for larger images
-    // For PostgreSQL: BYTEA is usually the default for byte[], so columnDefinition might not be strictly necessary
-    @Column(name = "image_data", columnDefinition = "LONGBLOB")
-    private byte[] imageData; // Stores the actual binary data of the image
+    @Lob
+    @Column(name = "image_data")
+    private byte[] imageData;
+
 
     // Optional: Store the content type (e.g., "image/jpeg", "image/png")
     // This is crucial when serving the image back to the client via HTTP
