@@ -1,4 +1,3 @@
-
 package kasiKotas.controller;
 
 import kasiKotas.model.*;
@@ -140,19 +139,22 @@ public class OrderController {
         return ResponseEntity.ok(count);
     }
 
+    // FIX: Change the return type from ResponseEntity<Order> to ResponseEntity<Object>
+    // This allows returning both Order objects for success and Map<String, String> for error messages.
     @PreAuthorize("isAuthenticated()")
     @PostMapping
-    public ResponseEntity<Order> createOrder(@RequestBody Map<String, Object> orderRequest) {
+    public ResponseEntity<Object> createOrder(@RequestBody Map<String, Object> orderRequest) {
         try {
             // ✅ Check current order count and limit
-            long currentOrderCount = orderService.getTotalOrderCount(); // You already have this method
-            Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit(); // You have this in DailyOrderLimitService
+            long currentOrderCount = orderService.getTotalOrderCount();
+            Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
 
             if (limitOptional.isPresent()) {
                 int limit = limitOptional.get().getLimitValue();
                 if (limit == 0 || currentOrderCount >= limit) {
+                    // *** FIX: Return a specific JSON error message (Map<String, String>) ***
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body(null); // or return a message saying "Order limit reached"
+                            .body(Map.of("message", "Daily order limit reached. We are no longer taking orders for today."));
                 }
             }
 
@@ -186,6 +188,7 @@ public class OrderController {
 
             Order savedOrder = orderService.createOrder(newOrder);
 
+            // This will still work as Order is an Object
             return new ResponseEntity<>(savedOrder, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             System.err.println("Order creation failed: " + e.getMessage());
