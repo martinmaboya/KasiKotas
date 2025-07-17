@@ -1,16 +1,16 @@
 
 package kasiKotas.controller;
 
-import kasiKotas.model.Order;
-import kasiKotas.model.OrderItem;
-import kasiKotas.model.Product;
-import kasiKotas.model.User;
+import kasiKotas.model.*;
+import kasiKotas.service.DailyOrderLimitService;
 import kasiKotas.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.util.Optional;
+
 
 import java.util.List;
 import java.util.Map;
@@ -21,10 +21,12 @@ import java.util.ArrayList;
 public class OrderController {
 
     private final OrderService orderService;
+    private final DailyOrderLimitService dailyOrderLimitService;
 
     @Autowired
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, DailyOrderLimitService dailyOrderLimitService) {
         this.orderService = orderService;
+        this.dailyOrderLimitService = dailyOrderLimitService;
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -138,11 +140,23 @@ public class OrderController {
         return ResponseEntity.ok(count);
     }
 
-    // Order creation is typically allowed for authenticated users (not just admins)
     @PreAuthorize("isAuthenticated()")
     @PostMapping
     public ResponseEntity<Order> createOrder(@RequestBody Map<String, Object> orderRequest) {
         try {
+            // ✅ Check current order count and limit
+            long currentOrderCount = orderService.getTotalOrderCount(); // You already have this method
+            Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit(); // You have this in DailyOrderLimitService
+
+            if (limitOptional.isPresent()) {
+                int limit = limitOptional.get().getLimitValue();
+                if (limit == 0 || currentOrderCount >= limit) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(null); // or return a message saying "Order limit reached"
+                }
+            }
+
+            // 🟢 Continue with normal order creation
             Long userId = ((Number) orderRequest.get("userId")).longValue();
             String shippingAddress = (String) orderRequest.get("shippingAddress");
             String paymentMethod = (String) orderRequest.get("paymentMethod");
@@ -171,20 +185,6 @@ public class OrderController {
             newOrder.setOrderItems(orderItems);
 
             Order savedOrder = orderService.createOrder(newOrder);
-
-            if (savedOrder.getUser() != null) {
-                savedOrder.getUser().getId();
-                savedOrder.getUser().getFirstName();
-                savedOrder.getUser().getLastName();
-                savedOrder.getUser().getEmail();
-            }
-            if (savedOrder.getOrderItems() != null) {
-                savedOrder.getOrderItems().forEach(item -> {
-                    if (item.getProduct() != null) {
-                        item.getProduct().getName();
-                    }
-                });
-            }
 
             return new ResponseEntity<>(savedOrder, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
