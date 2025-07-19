@@ -18,7 +18,7 @@ public class PromoCodeController {
     private PromoCodeService promoCodeService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    //@PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PromoCode> createPromo(@RequestBody PromoCode promo) {
         return new ResponseEntity<>(promoCodeService.createPromoCode(promo), HttpStatus.CREATED);
     }

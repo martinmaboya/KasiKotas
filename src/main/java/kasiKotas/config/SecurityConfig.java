@@ -42,10 +42,9 @@ package kasiKotas.config;
                                         "/product-images/**",
                                         "/api/extras",
                                         "/api/sauces",
-                                        // ADD THIS NEW LINE FOR YOUR API AUTH ENDPOINTS
+                                        "/api/promocodes",
                                         "/api/auth/**" // This will cover /api/auth/login and any other /api/auth paths
                                 ).permitAll()
-
                                 .anyRequest().authenticated()
                         )
                         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
