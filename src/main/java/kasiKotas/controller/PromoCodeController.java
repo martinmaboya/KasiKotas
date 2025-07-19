@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/promocodes")
+@RequestMapping("/api/promo-codes")
 @CrossOrigin("*")
 public class PromoCodeController {
 

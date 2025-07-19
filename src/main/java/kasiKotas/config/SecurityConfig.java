@@ -42,7 +42,7 @@ package kasiKotas.config;
                                         "/product-images/**",
                                         "/api/extras",
                                         "/api/sauces",
-                                        "/api/promocodes",
+                                        "/api/promo-codes",
                                         "/api/auth/**" // This will cover /api/auth/login and any other /api/auth paths
                                 ).permitAll()
                                 .anyRequest().authenticated()
