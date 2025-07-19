@@ -43,6 +43,9 @@ package kasiKotas.config;
                                         "/api/extras",
                                         "/api/sauces",
                                         "/api/promo-codes",
+                                        "/api/promo-codes/validate/**",
+                                        "/api/promo-codes/use/**",
+                                        "/api/promo-codes/**",// This will cover /api/promo-codes/create and any other /api/promo-codes paths
                                         "/api/auth/**" // This will cover /api/auth/login and any other /api/auth paths
                                 ).permitAll()
                                 .anyRequest().authenticated()

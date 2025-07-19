@@ -24,16 +24,15 @@ public class PromoCodeController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
     public List<PromoCode> getAll() {
         return promoCodeService.getAllPromoCodes();
     }
-    @PreAuthorize("hasRole('CUSTOMER')")
+
     @GetMapping("/validate/{code}")
     public ResponseEntity<PromoCode> validate(@PathVariable String code) {
         return ResponseEntity.ok(promoCodeService.validatePromoCode(code));
     }
-    @PreAuthorize("hasRole('CUSTOMER')")
+
     @PostMapping("/use/{code}")
     public ResponseEntity<?> use(@PathVariable String code) {
         promoCodeService.usePromoCode(code);
@@ -41,7 +40,6 @@ public class PromoCodeController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> delete(@PathVariable Long id) {
         promoCodeService.deletePromoCode(id);
         return ResponseEntity.ok().build();
