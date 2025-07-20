@@ -38,7 +38,7 @@ package kasiKotas.config;
                                         "/public/**",
                                         "/register",
                                         "/api/users/register",
-                                        "/api/products/getAll",
+                                        "/api/products/",
                                         "/product-images/**",
                                         "/api/extras",
                                         "/api/sauces",

@@ -25,13 +25,13 @@
                 this.productService = productService;
             }
 
-            @GetMapping("/getAll")
+            @GetMapping
             public ResponseEntity<List<Product>> getAllProducts() {
                 List<Product> products = productService.getAllProducts();
                 return ResponseEntity.ok(products);
             }
-            @PreAuthorize("hasRole('ADMIN')")
-            @GetMapping("/get{id}")
+
+            @GetMapping("/{id}")
             public ResponseEntity<Product> getProductById(@PathVariable Long id) {
                 return productService.getProductById(id)
                         .map(ResponseEntity::ok)
