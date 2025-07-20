@@ -38,11 +38,12 @@ package kasiKotas.config;
                                         "/public/**",
                                         "/register",
                                         "/api/users/register",
-                                        "/api/products/get",
+                                        "/api/products/getAll",
                                         "/product-images/**",
                                         "/api/extras",
                                         "/api/sauces",
-                                        "/api/promo-codes/**",// This will cover /api/promo-codes/create and any other /api/promo-codes paths
+                                        "/api/promo-codes/use/", // This will cover /api/promo-codes/create and any other /api/promo-codes paths
+                                        "/api/promo-codes/validate/",// This will cover /api/promo-codes/create and any other /api/promo-codes paths
                                         "/api/auth/**" // This will cover /api/auth/login and any other /api/auth paths
                                 ).permitAll()
                                 .anyRequest().authenticated()
