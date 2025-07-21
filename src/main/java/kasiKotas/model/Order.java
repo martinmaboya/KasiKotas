@@ -87,10 +87,11 @@ public class Order {
     public enum OrderStatus {
         PENDING,
         PROCESSING,
+        READY,
+        OUT_FOR_DELIVERY,
         DELIVERED,
-        CANCELLED,
-        COLLECTED, // For collection orders
-        READY,    // For delivery orders
+        COLLECTED,
+        CANCELLED
     }
 
     /**
