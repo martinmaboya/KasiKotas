@@ -18,6 +18,17 @@ package kasiKotas.config;
             @Configuration
             @EnableMethodSecurity
             public class SecurityConfig {
+    @Bean
+    public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+        org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
+        configuration.setAllowedOrigins(java.util.List.of("*")); // Change to your frontend URL for production
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type"));
+        configuration.setAllowCredentials(true);
+        org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
 
                 @Autowired
                 private JwtAuthFilter jwtAuthFilter;
@@ -29,6 +40,7 @@ package kasiKotas.config;
                 public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
                     http
                         .csrf(csrf -> csrf.disable())
+                        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                         .authorizeHttpRequests(authz -> authz
                                 .requestMatchers(
                                         // ... keep your existing permitAll paths ...
