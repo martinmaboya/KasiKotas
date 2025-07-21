@@ -56,6 +56,10 @@ public class Order {
     @Column(nullable = false)
     private String paymentMethod; // e.g., "cod", "eft"
 
+    // NEW: Field for scheduled delivery time (null for immediate delivery)
+    @Column(name = "scheduled_delivery_time")
+    private LocalDateTime scheduledDeliveryTime;
+
     // One-to-Many relationship with OrderItem
     // 'mappedBy' indicates that the 'order' field in the OrderItem entity owns the relationship.
     // CascadeType.ALL means that operations (like persist, remove) on the Order will cascade to its OrderItems.

@@ -9,7 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
-
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 
 import java.util.List;
 import java.util.Map;
@@ -163,11 +164,29 @@ public class OrderController {
             String shippingAddress = (String) orderRequest.get("shippingAddress");
             String paymentMethod = (String) orderRequest.get("paymentMethod");
             List<Map<String, Object>> itemsRaw = (List<Map<String, Object>>) orderRequest.get("orderItems");
+            
+            // NEW: Handle scheduled delivery time
+            LocalDateTime scheduledDeliveryTime = null;
+            Object scheduledTimeObj = orderRequest.get("scheduledDeliveryTime");
+            if (scheduledTimeObj != null && !scheduledTimeObj.toString().isEmpty()) {
+                try {
+                    scheduledDeliveryTime = LocalDateTime.parse(scheduledTimeObj.toString());
+                    // Validate scheduled delivery time
+                    validateScheduledDeliveryTime(scheduledDeliveryTime);
+                } catch (DateTimeParseException e) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", "Invalid scheduled delivery time format"));
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", e.getMessage()));
+                }
+            }
 
             Order newOrder = new Order();
             newOrder.setUser(new User(userId));
             newOrder.setShippingAddress(shippingAddress);
             newOrder.setPaymentMethod(paymentMethod);
+            newOrder.setScheduledDeliveryTime(scheduledDeliveryTime);
 
             List<OrderItem> orderItems = new ArrayList<>();
             for (Map<String, Object> itemRaw : itemsRaw) {
@@ -197,6 +216,30 @@ public class OrderController {
             System.err.println("An unexpected error occurred during order creation: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+    
+    /**
+     * Validates the scheduled delivery time according to business rules
+     * @param scheduledTime The scheduled delivery time to validate
+     * @throws IllegalArgumentException if the scheduled time is invalid
+     */
+    private void validateScheduledDeliveryTime(LocalDateTime scheduledTime) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime maxScheduleTime = now.plusDays(7);
+        
+        if (scheduledTime.isBefore(now)) {
+            throw new IllegalArgumentException("Scheduled delivery time must be in the future");
+        }
+        
+        if (scheduledTime.isAfter(maxScheduleTime)) {
+            throw new IllegalArgumentException("Scheduled delivery can only be set up to 7 days in advance");
+        }
+        
+        // Validate business hours (9 AM - 8 PM)
+        int hour = scheduledTime.getHour();
+        if (hour < 9 || hour > 20) {
+            throw new IllegalArgumentException("Scheduled delivery must be within business hours (9 AM - 8 PM)");
         }
     }
 }

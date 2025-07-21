@@ -30,6 +30,15 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Custom query method: find orders by a user and a specific status
     // List<Order> findByUserAndStatus(User user, Order.OrderStatus status);
 
+    // NEW: Query methods for scheduled delivery feature
+    List<Order> findByScheduledDeliveryTimeBetweenAndStatus(
+        LocalDateTime start, 
+        LocalDateTime end, 
+        Order.OrderStatus status
+    );
+    
+    List<Order> findByScheduledDeliveryTimeIsNotNull();
+
     // Removed: long countByOrderDateBetween(LocalDateTime startDateTime, LocalDateTime endDateTime);
     // This method is removed as the requirement is now for a total order limit, not a daily one.
     // The default JpaRepository.count() method will be used to get the total number of orders.
