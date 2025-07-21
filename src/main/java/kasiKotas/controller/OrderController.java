@@ -235,11 +235,13 @@ public class OrderController {
         if (scheduledTime.isAfter(maxScheduleTime)) {
             throw new IllegalArgumentException("Scheduled delivery can only be set up to 7 days in advance");
         }
-        
-        // Validate business hours (9 AM - 8 PM)
+
+        // Validate business hours (6 PM - 11:59 PM)
         int hour = scheduledTime.getHour();
-        if (hour < 9 || hour > 20) {
-            throw new IllegalArgumentException("Scheduled delivery must be within business hours (9 AM - 8 PM)");
+        int minute = scheduledTime.getMinute();
+        if (hour < 18 || (hour == 23 && minute > 59) || hour > 23) {
+            throw new IllegalArgumentException("Scheduled delivery must be between 18:00 and 23:59");
         }
+
     }
 }
