@@ -71,7 +71,7 @@
                 }
             }
 
-            @PreAuthorize("hasRole('ADMIN')")
+            @PreAuthorize("hasRole('ADMIN') or hasAuthority('ADMIN') or hasRole('ROLE_ADMIN')")
             @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
             public ResponseEntity<Product> updateProduct(
                     @PathVariable Long id,
@@ -97,7 +97,7 @@
                 }
             }
 
-            @PreAuthorize("hasRole('ADMIN')")
+            @PreAuthorize("hasRole('ADMIN') or hasAuthority('ADMIN') or hasRole('ROLE_ADMIN')")
             @DeleteMapping("/{id}")
             public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
                 boolean deleted = productService.deleteProduct(id);

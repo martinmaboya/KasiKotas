@@ -28,13 +28,15 @@ public class AuthController {
 
         return userService.authenticateUser(email, password)
                 .map(user -> {
-                    String token = jwtUtil.generateToken(user.getEmail());
+                    // FIXED: Pass both email AND role to generateToken
+                    String token = jwtUtil.generateToken(user.getEmail(), user.getRole().toString());
                     Map<String, Object> response = new HashMap<>();
                     response.put("message", "Login successful");
                     response.put("token", token);
                     response.put("id", user.getId());
                     response.put("firstName", user.getFirstName());
                     response.put("role", user.getRole()); // Make sure this returns "ADMIN" or "USER"
+                    response.put("email", user.getEmail()); // Added for completeness
                     // Add other user fields as needed
                     return ResponseEntity.ok(response);
                 })
