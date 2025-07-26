@@ -1,9 +1,11 @@
 package kasiKotas.config;
 
+
 import kasiKotas.security.JwtAuthFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod; // ✅ Add this import
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -31,21 +33,25 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(
-                                // ... keep your existing permitAll paths ...
                                 "/",
                                 "/home",
                                 "/auth/**",
                                 "/public/**",
                                 "/register",
                                 "/api/users/register",
-                                "/api/products/get-all",
+                                "/api/products/get-all",           // ✅ Public: view products
                                 "/product-images/**",
                                 "/api/extras",
                                 "/api/sauces",
-                                "/api/promo-codes/use/", // This will cover /api/promo-codes/create and any other /api/promo-codes paths
-                                "/api/promo-codes/validate/",// This will cover /api/promo-codes/create and any other /api/promo-codes paths
-                                "/api/auth/**" // This will cover /api/auth/login and any other /api/auth paths
+                                "/api/promo-codes/validate/**",    // ✅ Public: validate promo codes (no trailing slash)
+                                "/api/promo-codes/use/**",         // ✅ Public: use promo codes (no trailing slash)
+                                "/api/auth/**"
                         ).permitAll()
+                        // ✅ IMPORTANT: Add specific admin-only promo code rules AFTER permitAll
+                        .requestMatchers(HttpMethod.GET, "/api/promo-codes").hasRole("ADMIN")         // Admin: GET all promo codes
+                        .requestMatchers(HttpMethod.POST, "/api/promo-codes").hasRole("ADMIN")        // Admin: CREATE promo codes
+                        .requestMatchers(HttpMethod.DELETE, "/api/promo-codes/**").hasRole("ADMIN")   // Admin: DELETE promo codes
+                        .requestMatchers("/api/products/**").hasRole("ADMIN")                         // Admin: product management
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
