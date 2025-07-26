@@ -17,13 +17,13 @@ public class PromoCodeController {
     @Autowired
     private PromoCodeService promoCodeService;
 
-    @PreAuthorize("hasRole('ADMIN')") // Add this
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ADMIN') or hasRole('ROLE_ADMIN')") // Add this
     @PostMapping
     public ResponseEntity<PromoCode> createPromo(@RequestBody PromoCode promo) {
         return new ResponseEntity<>(promoCodeService.createPromoCode(promo), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasRole('ADMIN')") // Add this if only admins should view all
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ADMIN') or hasRole('ROLE_ADMIN')") // Add this if only admins should view all
     @GetMapping
     public List<PromoCode> getAll() {
         return promoCodeService.getAllPromoCodes();
@@ -41,7 +41,7 @@ public class PromoCodeController {
         return ResponseEntity.ok().build();
     }
 
-    @PreAuthorize("hasRole('ADMIN')") // Add this
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ADMIN') or hasRole('ROLE_ADMIN')")// Add this
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id) {
         promoCodeService.deletePromoCode(id);
