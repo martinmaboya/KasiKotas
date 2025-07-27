@@ -86,7 +86,7 @@ public class ProductController implements WebMvcConfigurer {
         }
     }
 
-    // Endpoint to get product image as a blob
+    // Endpoint to get product image as a blob (public)
     @GetMapping("/{id}/image")
     public ResponseEntity<byte[]> getProductImage(@PathVariable Long id) {
         return productService.getProductById(id)

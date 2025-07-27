@@ -40,6 +40,7 @@ public class SecurityConfig {
                                 "/register",
                                 "/api/users/register",
                                 "/api/products/get-all",           // ✅ Public: view products
+                                "/api/products/*/image",           // ✅ Public: get product image
                                 "/product-images/**",
                                 "/api/extras",
                                 "/api/sauces",
@@ -51,6 +52,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/promo-codes").hasRole("ADMIN")         // Admin: GET all promo codes
                         .requestMatchers(HttpMethod.POST, "/api/promo-codes").hasRole("ADMIN")        // Admin: CREATE promo codes
                         .requestMatchers(HttpMethod.DELETE, "/api/promo-codes/**").hasRole("ADMIN")   // Admin: DELETE promo codes
+                        .requestMatchers(HttpMethod.GET, "/api/products/*/image").permitAll() // Public: get product image
                         .requestMatchers("/api/products/**").hasRole("ADMIN")                         // Admin: product management
                         .anyRequest().authenticated()
                 )
