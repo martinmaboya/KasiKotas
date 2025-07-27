@@ -91,19 +91,18 @@ public class ProductService {
 
         // Handle image upload if a file is provided
         if (imageFile != null && !imageFile.isEmpty()) {
+            if (imageFile.getSize() > 20 * 1024 * 1024) { // 20MB limit
+                throw new IllegalArgumentException("Image file size must not exceed 20MB.");
+            }
             try {
-                String fileName = saveProductImage(imageFile);
-                product.setImageUrl("/product-images/" + fileName); // Store a relative URL for access
+                product.setImage(imageFile.getBytes());
+                product.setImageType(imageFile.getContentType());
             } catch (IOException e) {
-                // If image saving fails, throw an exception or handle it
                 throw new IllegalArgumentException("Failed to store image: " + e.getMessage(), e);
             }
-        } else if (!StringUtils.hasText(product.getImageUrl())) {
-            // If no file and no imageUrl provided, set a default/placeholder
-            product.setImageUrl("/product-images/default.png"); // Consider a default image if no upload
         }
-        // If imageUrl was provided directly AND no imageFile, it will just use the provided URL.
-
+        // Remove imageUrl logic, as we now store the image as a blob
+        product.setImageUrl(null);
         return productRepository.save(product);
     }
 
@@ -120,7 +119,6 @@ public class ProductService {
     public Optional<Product> updateProduct(Long id, Product productDetails, MultipartFile imageFile) {
         return productRepository.findById(id)
                 .map(existingProduct -> {
-                    // Apply the same validation rules for updates
                     if (!StringUtils.hasText(productDetails.getName())) {
                         throw new IllegalArgumentException("Product name cannot be empty.");
                     }
@@ -133,36 +131,24 @@ public class ProductService {
                     if (productDetails.getStock() == null || productDetails.getStock() < 0) {
                         throw new IllegalArgumentException("Updated product stock cannot be negative.");
                     }
-
-                    // Handle image update
-                    if (imageFile != null && !imageFile.isEmpty()) {
-                        try {
-                            // Delete old image if it exists (optional, depends on cleanup strategy)
-                            // deleteProductImage(existingProduct.getImageUrl());
-                            String fileName = saveProductImage(imageFile);
-                            existingProduct.setImageUrl("/product-images/" + fileName);
-                        } catch (IOException e) {
-                            throw new IllegalArgumentException("Failed to update image: " + e.getMessage(), e);
-                        }
-                    } else if (StringUtils.hasText(productDetails.getImageUrl())) {
-                        // If a new URL is provided (and no file), update it
-                        existingProduct.setImageUrl(productDetails.getImageUrl());
-                    } else if (!StringUtils.hasText(productDetails.getImageUrl()) && !StringUtils.hasText(existingProduct.getImageUrl())) {
-                        // If no new image and no existing image, set to default/null
-                        existingProduct.setImageUrl("/product-images/default.png");
-                    }
-                    // If imageFile is null and productDetails.getImageUrl() is null/empty,
-                    // and existingProduct.getImageUrl() had a value, it remains unchanged by default.
-                    // This logic depends on whether 'null' in payload should clear existing image.
-
-
-                    // Update other fields
                     existingProduct.setName(productDetails.getName());
                     existingProduct.setDescription(productDetails.getDescription());
                     existingProduct.setPrice(productDetails.getPrice());
                     existingProduct.setStock(productDetails.getStock());
-
-                    return productRepository.save(existingProduct); // Save the updated product
+                    if (imageFile != null && !imageFile.isEmpty()) {
+                        if (imageFile.getSize() > 20 * 1024 * 1024) { // 20MB limit
+                            throw new IllegalArgumentException("Image file size must not exceed 20MB.");
+                        }
+                        try {
+                            existingProduct.setImage(imageFile.getBytes());
+                            existingProduct.setImageType(imageFile.getContentType());
+                        } catch (IOException e) {
+                            throw new IllegalArgumentException("Failed to update image: " + e.getMessage(), e);
+                        }
+                    }
+                    // Remove imageUrl logic
+                    existingProduct.setImageUrl(null);
+                    return productRepository.save(existingProduct);
                 });
     }
 

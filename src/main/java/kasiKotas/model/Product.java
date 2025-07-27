@@ -47,6 +47,12 @@ public class Product {
     @Column(nullable = false)
     private Integer stock; // The quantity of this Kota currently available in stock. This field is mandatory.
 
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    private byte[] image; // NEW: Image data for the product, stored as a blob in the database.
+
+    private String imageType; // MIME type of the image (e.g., image/jpeg)
+
     // Note: Lombok automatically generates the getters and setters, so you don't
     // need to write them manually in this file. For example, getName(), setName(String name), etc.
 }
