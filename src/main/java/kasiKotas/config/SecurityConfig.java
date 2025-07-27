@@ -46,7 +46,8 @@ public class SecurityConfig {
                                 "/api/sauces",
                                 "/api/promo-codes/validate/**",    // ✅ Public: validate promo codes (no trailing slash)
                                 "/api/promo-codes/use/**",         // ✅ Public: use promo codes (no trailing slash)
-                                "/api/auth/**"
+                                "/api/auth/forgot-password",       // ✅ Public: forgot password
+                                "/api/auth/reset-password"         // ✅ Public: reset password
                         ).permitAll()
                         // ✅ IMPORTANT: Add specific admin-only promo code rules AFTER permitAll
                         .requestMatchers(HttpMethod.GET, "/api/promo-codes").hasRole("ADMIN")         // Admin: GET all promo codes
