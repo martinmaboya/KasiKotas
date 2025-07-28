@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 
 import java.time.LocalDate;
 
@@ -17,6 +18,7 @@ import java.time.LocalDate;
 @Data // Lombok: Getters, Setters, toString, equals, hashCode
 @NoArgsConstructor // Lombok: No-arg constructor
 @AllArgsConstructor // Lombok: All-args constructor
+@Builder // Lombok: Enables builder pattern
 public class PromoCode {
 
     @Id

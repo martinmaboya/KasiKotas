@@ -34,7 +34,7 @@ public class KasiKotasApplication {
                 // IMPORTANT: In production, replace "*" with the actual URL(s) of your deployed frontend.
                 // Example: .allowedOrigins("https://your-frontend-app.onrender.com", "http://localhost:3000")
                 registry.addMapping("/**") // Apply CORS to all endpoints
-                        .allowedOrigins("https://kasikotas-frondend.onrender.com")// Allow all origins (for development)
+                        .allowedOrigins("https://kasikotas-frondend.onrender.com", "http://localhost:5173", "http://localhost:5174", "http://localhost:3000")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Allowed HTTP methods
                         .allowedHeaders("*") // Allow all headers
                         .allowCredentials(true) // Do not allow credentials (e.g., cookies, auth headers)

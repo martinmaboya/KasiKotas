@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Data; // For boilerplate code (getters, setters, etc.)
 import lombok.NoArgsConstructor; // For no-argument constructor
 import lombok.AllArgsConstructor; // For all-argument constructor
+import lombok.Builder; // For builder pattern
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // For JSON serialization issues
 import java.util.List; // For the one-to-many relationship with Order
 
@@ -20,6 +21,7 @@ import java.util.List; // For the one-to-many relationship with Order
 @Data // Lombok: Generates getters, setters, toString, equals, and hashCode methods
 @NoArgsConstructor // Lombok: Generates a no-argument constructor (required by JPA)
 @AllArgsConstructor // Lombok: Generates a constructor with all fields
+@Builder // Lombok: Enables builder pattern
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "orders"}) // Ignore Hibernate's proxy fields and 'orders' to prevent infinite recursion
 public class User {
 

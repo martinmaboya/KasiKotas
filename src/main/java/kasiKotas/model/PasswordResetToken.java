@@ -9,12 +9,14 @@ import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 
 @Entity
 @Table(name = "password_reset_tokens")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class PasswordResetToken {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

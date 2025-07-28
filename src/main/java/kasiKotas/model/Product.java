@@ -5,6 +5,7 @@ import jakarta.persistence.*; // JPA annotations for database mapping
 import lombok.Data; // Lombok for boilerplate code reduction
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Builder; // Import for Builder annotation
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Import for JsonIgnoreProperties
 
 /**
@@ -25,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Import for Json
 @Data // Lombok: Generates boilerplate code (getters, setters, toString, equals, hashCode)
 @NoArgsConstructor // Lombok: Generates a public no-argument constructor, required by JPA.
 @AllArgsConstructor // Lombok: Generates a constructor with all fields, useful for creating instances with data.
+@Builder // Lombok: Enables builder pattern
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // NEW: Ignore Hibernate's internal proxy fields during JSON serialization
 public class Product {
 

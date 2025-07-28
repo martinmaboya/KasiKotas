@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 
 /**
  * Represents the single configurable total order limit for the system.
@@ -17,6 +18,7 @@ import lombok.AllArgsConstructor;
 @Data // Lombok: Generates getters, setters, toString, equals, and hashCode
 @NoArgsConstructor // Lombok: Generates a no-argument constructor
 @AllArgsConstructor // Lombok: Generates a constructor with all fields
+@Builder
 public class DailyOrderLimit {
 
     @Id

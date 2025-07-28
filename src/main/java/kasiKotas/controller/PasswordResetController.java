@@ -1,5 +1,6 @@
 package kasiKotas.controller;
 
+import kasiKotas.factory.PasswordResetTokenFactory;
 import kasiKotas.model.PasswordResetToken;
 import kasiKotas.model.User;
 import kasiKotas.repository.PasswordResetTokenRepository;
@@ -9,9 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -37,13 +36,11 @@ public class PasswordResetController {
         response.put("success", true);
         response.put("message", "Reset link sent if email exists");
         if (user.isPresent()) {
-            String token = generateSecureToken();
-            LocalDateTime expires = LocalDateTime.now().plusMinutes(15);
-            PasswordResetToken resetToken = new PasswordResetToken();
-            resetToken.setUserId(user.get().getId());
-            resetToken.setEmail(email);
-            resetToken.setToken(token);
-            resetToken.setExpiresAt(expires);
+            PasswordResetToken resetToken = PasswordResetTokenFactory.create(
+                user.get().getId(),
+                email,
+                15 // expiry in minutes
+            );
             tokenRepository.save(resetToken);
             // Frontend will handle email sending
         }
@@ -91,12 +88,4 @@ public class PasswordResetController {
         response.put("message", "User not found");
         return ResponseEntity.badRequest().body(response);
     }
-
-    private String generateSecureToken() {
-        SecureRandom random = new SecureRandom();
-        byte[] bytes = new byte[32];
-        random.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
 }
-

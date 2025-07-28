@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 
 /**
  * Represents the banking details for the business,
@@ -17,6 +18,7 @@ import lombok.AllArgsConstructor;
 @Data // Lombok: Generates getters, setters, toString, equals, and hashCode methods automatically
 @NoArgsConstructor // Lombok: Generates a no-argument constructor
 @AllArgsConstructor // Lombok: Generates a constructor with all fields
+@Builder
 public class BankDetails {
 
     // Using a fixed ID or finding the existing one.

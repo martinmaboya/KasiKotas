@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import com.fasterxml.jackson.annotation.JsonBackReference; // Import for JsonBackReference
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // General purpose for Hibernate proxies
 
@@ -21,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // General purpose
 @Data // Lombok: Generates getters, setters, toString, equals, and hashCode
 @NoArgsConstructor // Lombok: Generates a no-argument constructor
 @AllArgsConstructor // Lombok: Generates a constructor with all fields
+@Builder
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // Ignore Hibernate's internal proxy fields
 public class OrderItem {
 
