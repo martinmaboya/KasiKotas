@@ -40,21 +40,21 @@ public class SecurityConfig {
                                 "/register",
                                 "/api/users/register",
                                 "/api/products/get-all",           // ✅ Public: view products
-                                "/api/products/*/image",           // ✅ Public: get product image
+                                "/api/products/*/image",           // Public: get product image
                                 "/product-images/**",
                                 "/api/extras",
                                 "/api/sauces",
-                                "/api/promo-codes/validate/**",    // ✅ Public: validate promo codes (no trailing slash)
-                                "/api/promo-codes/use/**",         // ✅ Public: use promo codes (no trailing slash)
-                                "/api/auth/forgot-password",       // ✅ Public: forgot password
-                                "/api/auth/reset-password",        // ✅ Public: reset password
-                                "/api/auth/get-reset-token"        // ✅ Public: get reset token
+                                "/api/promo-codes/validate/**",    // Public: validate promo codes
+                                "/api/promo-codes/use/**",         // Public: use promo codes
+                                "/api/auth/forgot-password",       // Public: forgot password
+                                "/api/auth/reset-password",        // Public: reset password
+                                "/api/auth/login",                 // Public: login
+                                "/api/auth/get-reset-token"        // Public: get reset token
                         ).permitAll()
-                        // ✅ IMPORTANT: Add specific admin-only promo code rules AFTER permitAll
+                        // Admin-only promo code rules AFTER permitAll
                         .requestMatchers(HttpMethod.GET, "/api/promo-codes").hasRole("ADMIN")         // Admin: GET all promo codes
                         .requestMatchers(HttpMethod.POST, "/api/promo-codes").hasRole("ADMIN")        // Admin: CREATE promo codes
                         .requestMatchers(HttpMethod.DELETE, "/api/promo-codes/**").hasRole("ADMIN")   // Admin: DELETE promo codes
-                        .requestMatchers(HttpMethod.GET, "/api/products/*/image").permitAll() // Public: get product image
                         .requestMatchers("/api/products/**").hasRole("ADMIN")                         // Admin: product management
                         .anyRequest().authenticated()
                 )
