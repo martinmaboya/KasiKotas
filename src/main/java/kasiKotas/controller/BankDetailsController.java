@@ -27,7 +27,7 @@ public class BankDetailsController {
      * Retrieves the business bank details.
      * Only accessible by ADMIN users.
      */
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ADMIN') or hasRole('ROLE_ADMIN') or hasRole('CUSTOMER')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER')")
     @GetMapping
     public ResponseEntity<BankDetails> getBankDetails() {
         return bankDetailsService.getBankDetails()
@@ -39,7 +39,7 @@ public class BankDetailsController {
      * Creates or updates the business bank details.
      * Only accessible by ADMIN users.
      */
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ADMIN') or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<BankDetails> saveOrUpdateBankDetails(@RequestBody BankDetails bankDetails) {
         try {

@@ -29,7 +29,7 @@ public class OrderController {
         this.dailyOrderLimitService = dailyOrderLimitService;
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ADMIN') or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<Order>> getAllOrders() {
         List<Order> orders = orderService.getAllOrders();
@@ -51,7 +51,7 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ADMIN') or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
         return orderService.getOrderById(id)
@@ -74,7 +74,7 @@ public class OrderController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasRole('CUSTOMER') or #userId == authentication.principal.id")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER') or #userId == authentication.principal.id")
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Order>> getOrdersByUserId(@PathVariable Long userId) {
         try {
@@ -100,7 +100,7 @@ public class OrderController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ADMIN') or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{orderId}/status")
     public ResponseEntity<Order> updateOrderStatus(@PathVariable Long orderId, @RequestBody Map<String, String> requestBody) {
         String statusString = requestBody.get("status");
@@ -122,7 +122,7 @@ public class OrderController {
         }
     }
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
         boolean deleted = orderService.deleteOrder(id);
