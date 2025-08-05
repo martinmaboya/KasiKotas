@@ -122,7 +122,7 @@ public class OrderController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
         boolean deleted = orderService.deleteOrder(id);
