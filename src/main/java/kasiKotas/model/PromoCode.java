@@ -43,6 +43,10 @@ public class PromoCode {
     @Column(nullable = false)
     private LocalDate expiryDate; // Date the promo code expires
 
+        @Column(nullable = false)
+        @Builder.Default
+        private Double minimumOrderAmount = 0.0; // Minimum order amount required to apply promo
+
     @Column(columnDefinition = "TEXT")
     private String description; // Optional: e.g., "10% off your next order"
 

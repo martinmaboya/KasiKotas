@@ -17,13 +17,13 @@ public class PromoCodeController {
     @Autowired
     private PromoCodeService promoCodeService;
 
-    @PreAuthorize("hasRole('ADMIN')") // Add this
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<PromoCode> createPromo(@RequestBody PromoCode promo) {
         return new ResponseEntity<>(promoCodeService.createPromoCode(promo), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasRole('ADMIN')") // Add this if only admins should view all
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public List<PromoCode> getAll() {
         return promoCodeService.getAllPromoCodes();
@@ -31,13 +31,13 @@ public class PromoCodeController {
 
     // You might want to allow non-admins to validate/use promo codes
     @GetMapping("/validate/{code}")
-    public ResponseEntity<PromoCode> validate(@PathVariable String code) {
-        return ResponseEntity.ok(promoCodeService.validatePromoCode(code));
+    public ResponseEntity<PromoCode> validate(@PathVariable String code, @RequestParam(required = false) Double orderAmount) {
+        return ResponseEntity.ok(promoCodeService.validatePromoCode(code, orderAmount));
     }
 
     @PostMapping("/use/{code}")
-    public ResponseEntity<?> use(@PathVariable String code) {
-        promoCodeService.usePromoCode(code);
+    public ResponseEntity<?> use(@PathVariable String code, @RequestParam Double orderAmount) {
+        promoCodeService.usePromoCode(code, orderAmount);
         return ResponseEntity.ok().build();
     }
 

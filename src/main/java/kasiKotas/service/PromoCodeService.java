@@ -22,7 +22,7 @@ public class PromoCodeService {
         return promoCodeRepository.findAll();
     }
 
-    public PromoCode validatePromoCode(String code) {
+    public PromoCode validatePromoCode(String code, Double orderAmount) {
         PromoCode promo = promoCodeRepository.findByCode(code)
                 .orElseThrow(() -> new RuntimeException("Promo code not found"));
 
@@ -34,13 +34,21 @@ public class PromoCodeService {
             throw new RuntimeException("Promo code has expired");
         }
 
+        if (orderAmount != null && orderAmount < promo.getMinimumOrderAmount()) {
+            throw new RuntimeException("Order amount does not meet minimum required for promo code");
+        }
+
         return promo;
     }
 
-    public void usePromoCode(String code) {
-        PromoCode promo = validatePromoCode(code);
+    public void usePromoCode(String code, Double orderAmount) {
+        PromoCode promo = validatePromoCode(code, orderAmount);
         promo.setUsageCount(promo.getUsageCount() + 1);
-        promoCodeRepository.save(promo);
+        if (promo.getUsageCount() >= promo.getMaxUsages()) {
+            promoCodeRepository.delete(promo);
+        } else {
+            promoCodeRepository.save(promo);
+        }
     }
 
     public void deletePromoCode(Long id) {
