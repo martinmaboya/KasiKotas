@@ -145,7 +145,7 @@ public class OrderController {
     @PreAuthorize("isAuthenticated()")
     @PostMapping
     public ResponseEntity<Object> createOrder(@RequestBody Map<String, Object> orderRequest) {
-        try {
+    try {
             // ✅ Check current order count and limit
             long currentOrderCount = orderService.getTotalOrderCount();
             Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
@@ -211,11 +211,11 @@ public class OrderController {
             return new ResponseEntity<>(savedOrder, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             System.err.println("Order creation failed: " + e.getMessage());
-            return ResponseEntity.badRequest().body(null);
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             System.err.println("An unexpected error occurred during order creation: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "An unexpected error occurred during order creation."));
         }
     }
     
