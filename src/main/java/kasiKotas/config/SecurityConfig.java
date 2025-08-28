@@ -51,28 +51,29 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers(
-                                "/",
-                                "/home",
-                                "/auth/**",
-                                "/public/**",
-                                "/register",
-                                "/api/users/register",
-                                "/api/products/get-all",
-                                "/api/products/*/image",
-                                "/product-images/**",
-                                "/api/extras",
-                                "/api/sauces",
-                                "/api/promo-codes/validate/**",
-                                "/api/promo-codes/use/**",
-                                "/api/auth/forgot-password",
-                                "/api/auth/reset-password",
-                                "/api/auth/login",
-                                "/api/auth/get-reset-token",
-                                "/api/auth/google",
-                                "/api/auth/facebook",
-                                "/api/auth/oauth/status"
-                        ).permitAll()
+            .requestMatchers(
+                "/",
+                "/home",
+                "/auth/**",
+                "/public/**",
+                "/register",
+                "/api/users/register",
+                "/api/products/get-all",
+                "/api/products/*/image",
+                "/product-images/**",
+                "/api/extras",
+                "/api/sauces",
+                "/api/promo-codes",
+                "/api/promo-codes/validate/**",
+                "/api/promo-codes/use/**",
+                "/api/auth/forgot-password",
+                "/api/auth/reset-password",
+                "/api/auth/login",
+                "/api/auth/get-reset-token",
+                "/api/auth/google",
+                "/api/auth/facebook",
+                "/api/auth/oauth/status"
+            ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

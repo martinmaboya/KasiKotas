@@ -11,23 +11,22 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/promo-codes")
-@CrossOrigin("*")
 public class PromoCodeController {
 
     @Autowired
     private PromoCodeService promoCodeService;
 
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping
-    public ResponseEntity<PromoCode> createPromo(@RequestBody PromoCode promo) {
-        return new ResponseEntity<>(promoCodeService.createPromoCode(promo), HttpStatus.CREATED);
-    }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping
-    public List<PromoCode> getAll() {
-        return promoCodeService.getAllPromoCodes();
-    }
+        @PreAuthorize("hasRole('ADMIN')")
+        @PostMapping
+        public ResponseEntity<PromoCode> createPromo(@RequestBody PromoCode promo) {
+            return new ResponseEntity<>(promoCodeService.createPromoCode(promo), HttpStatus.CREATED);
+        }
+
+        @GetMapping
+        public List<PromoCode> getAll() {
+            return promoCodeService.getAllPromoCodes();
+        }
 
     // You might want to allow non-admins to validate/use promo codes
     @GetMapping("/validate/{code}")
@@ -41,10 +40,10 @@ public class PromoCodeController {
         return ResponseEntity.ok().build();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")// Add this
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
-        promoCodeService.deletePromoCode(id);
-        return ResponseEntity.ok().build();
-    }
+        @PreAuthorize("hasRole('ADMIN')")
+        @DeleteMapping("/{id}")
+        public ResponseEntity<?> delete(@PathVariable Long id) {
+            promoCodeService.deletePromoCode(id);
+            return ResponseEntity.ok().build();
+        }
 }
