@@ -27,7 +27,7 @@ public class BankDetailsController {
      * Retrieves the business bank details.
      * Only accessible by ADMIN users.
      */
-    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER')")
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('CUSTOMER')")
     @GetMapping
     public ResponseEntity<BankDetails> getBankDetails() {
         return bankDetailsService.getBankDetails()
@@ -39,7 +39,7 @@ public class BankDetailsController {
      * Creates or updates the business bank details.
      * Only accessible by ADMIN users.
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping
     public ResponseEntity<BankDetails> saveOrUpdateBankDetails(@RequestBody BankDetails bankDetails) {
         try {
@@ -55,7 +55,7 @@ public class BankDetailsController {
     }
 
     // Optional: Add a DELETE endpoint if needed, also protected by ADMIN role.
-    // @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasAuthority('ADMIN')")
     // @DeleteMapping("/{id}")
     // public ResponseEntity<Void> deleteBankDetails(@PathVariable Long id) {
     //     boolean deleted = bankDetailsService.deleteBankDetails(id);

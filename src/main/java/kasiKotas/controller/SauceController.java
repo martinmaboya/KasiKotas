@@ -28,7 +28,7 @@ public class SauceController {
         return ResponseEntity.ok(sauces);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER')")
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('CUSTOMER')")
     @GetMapping("/{id}")
     public ResponseEntity<Sauce> getSauceById(@PathVariable Long id) {
         return sauceService.getSauceById(id)
@@ -36,7 +36,7 @@ public class SauceController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping
     public ResponseEntity<Sauce> createSauce(@RequestBody Sauce sauce) {
         try {
@@ -47,7 +47,7 @@ public class SauceController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<Sauce> updateSauce(@PathVariable Long id, @RequestBody Sauce sauceDetails) {
         try {
@@ -59,7 +59,7 @@ public class SauceController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSauce(@PathVariable Long id) {
         boolean deleted = sauceService.deleteSauce(id);

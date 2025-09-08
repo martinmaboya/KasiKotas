@@ -39,7 +39,7 @@ public class ProductController implements WebMvcConfigurer {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<Product> createProduct(
             @RequestParam("name") String name,
@@ -62,7 +62,7 @@ public class ProductController implements WebMvcConfigurer {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public ResponseEntity<Product> updateProduct(
             @PathVariable Long id,
@@ -97,7 +97,7 @@ public class ProductController implements WebMvcConfigurer {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         boolean deleted = productService.deleteProduct(id);

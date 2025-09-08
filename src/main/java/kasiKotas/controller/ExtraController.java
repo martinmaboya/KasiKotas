@@ -28,7 +28,7 @@ package kasiKotas.controller;
             return ResponseEntity.ok(extras);
         }
 
-        @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER')")
+        @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('CUSTOMER')")
         @GetMapping("/{id}")
         public ResponseEntity<Extra> getExtraById(@PathVariable Long id) {
             return extraService.getExtraById(id)
@@ -36,7 +36,7 @@ package kasiKotas.controller;
                     .orElseGet(() -> ResponseEntity.notFound().build());
         }
 
-        @PreAuthorize("hasRole('ADMIN')")
+        @PreAuthorize("hasAuthority('ADMIN')")
         @PostMapping
         public ResponseEntity<Extra> createExtra(@RequestBody Extra extra) {
             try {
@@ -47,7 +47,7 @@ package kasiKotas.controller;
             }
         }
 
-        @PreAuthorize("hasRole('ADMIN')")
+        @PreAuthorize("hasAuthority('ADMIN')")
         @PutMapping("/{id}")
         public ResponseEntity<Extra> updateExtra(@PathVariable Long id, @RequestBody Extra extraDetails) {
             try {
@@ -59,7 +59,7 @@ package kasiKotas.controller;
             }
         }
 
-        @PreAuthorize("hasRole('ADMIN')")
+        @PreAuthorize("hasAuthority('ADMIN')")
         @DeleteMapping("/{id}")
         public ResponseEntity<Void> deleteExtra(@PathVariable Long id) {
             boolean deleted = extraService.deleteExtra(id);
