@@ -17,7 +17,7 @@ public class PromoCodeController {
     private PromoCodeService promoCodeService;
 
 
-        @PreAuthorize("hasRole('ADMIN')")
+
         @PostMapping
         public ResponseEntity<PromoCode> createPromo(@RequestBody PromoCode promo) {
             return new ResponseEntity<>(promoCodeService.createPromoCode(promo), HttpStatus.CREATED);
@@ -40,7 +40,7 @@ public class PromoCodeController {
         return ResponseEntity.ok().build();
     }
 
-        @PreAuthorize("hasRole('ADMIN')")
+
         @DeleteMapping("/{id}")
         public ResponseEntity<?> delete(@PathVariable Long id) {
             promoCodeService.deletePromoCode(id);
