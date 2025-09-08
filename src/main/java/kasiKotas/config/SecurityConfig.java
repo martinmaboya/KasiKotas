@@ -63,6 +63,7 @@ public class SecurityConfig {
                 "/product-images/**",
                 "/api/extras",
                 "/api/sauces",
+                    "/api/promo-codes/**",
                 "/api/promo-codes/validate/**",
                 "/api/promo-codes/use/**",
                 "/api/auth/forgot-password",

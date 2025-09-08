@@ -32,7 +32,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        System.out.println("JwtAuthFilter: doFilterInternal called for " + request.getRequestURI());
         String token = getJwtFromRequest(request);
+
+        if (token == null) {
+            System.out.println("[JWT DEBUG] No JWT token found in request headers for " + request.getRequestURI());
+        } else if (!jwtUtil.validateToken(token)) {
+            System.out.println("[JWT DEBUG] Invalid JWT token for " + request.getRequestURI());
+        }
 
         if (token != null && jwtUtil.validateToken(token)) {
             String username = jwtUtil.getUsernameFromToken(token);
@@ -59,8 +66,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                // Optional logging
+                // Enhanced debug logging
+                System.out.println("=== JWT AUTH DEBUG ===");
                 System.out.println("Authenticated user: " + username + " with JWT role: ROLE_" + role);
+                System.out.println("Authorities: " + authorities);
+                System.out.println("Request URI: " + request.getRequestURI());
+                System.out.println("Request Method: " + request.getMethod());
+                System.out.println("=====================");
+            } else {
+                System.out.println("[JWT DEBUG] Username is null or authentication already exists for " + request.getRequestURI());
             }
         }
 

@@ -18,17 +18,15 @@ public class PromoCodeController {
 
 
 
-    @PreAuthorize("hasAuthority('ADMIN')")
-    @PostMapping
-    public ResponseEntity<PromoCode> createPromo(@RequestBody PromoCode promo) {
-        return new ResponseEntity<>(promoCodeService.createPromoCode(promo), HttpStatus.CREATED);
-    }
+        @PostMapping
+        public ResponseEntity<PromoCode> createPromo(@RequestBody PromoCode promo) {
+            return new ResponseEntity<>(promoCodeService.createPromoCode(promo), HttpStatus.CREATED);
+        }
 
-    @PreAuthorize("hasAuthority('ADMIN')")
-    @GetMapping
-    public List<PromoCode> getAll() {
-        return promoCodeService.getAllPromoCodes();
-    }
+        @GetMapping
+        public List<PromoCode> getAll() {
+            return promoCodeService.getAllPromoCodes();
+        }
 
     // You might want to allow non-admins to validate/use promo codes
     @GetMapping("/validate/{code}")
@@ -43,10 +41,9 @@ public class PromoCodeController {
     }
 
 
-    @PreAuthorize("hasAuthority('ADMIN')")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
-        promoCodeService.deletePromoCode(id);
-        return ResponseEntity.ok().build();
-    }
+        @DeleteMapping("/{id}")
+        public ResponseEntity<?> delete(@PathVariable Long id) {
+            promoCodeService.deletePromoCode(id);
+            return ResponseEntity.ok().build();
+        }
 }
