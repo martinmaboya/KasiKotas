@@ -26,7 +26,7 @@ public class DailyOrderLimitController {
      * Retrieves the current total order limit.
      * Only accessible by ADMIN users.
      */
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<DailyOrderLimit> getOrderLimit() {
         return dailyOrderLimitService.getOrderLimit()
@@ -38,7 +38,7 @@ public class DailyOrderLimitController {
      * Sets or updates the total order limit.
      * Only accessible by ADMIN users.
      */
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<DailyOrderLimit> setOrderLimit(@RequestBody Map<String, Integer> requestBody) {
         Integer limitValue = requestBody.get("limitValue");

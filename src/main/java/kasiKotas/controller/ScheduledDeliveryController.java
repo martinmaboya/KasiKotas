@@ -16,7 +16,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/admin/scheduled-deliveries")
-@PreAuthorize("hasAuthority('ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class ScheduledDeliveryController {
 
     private final DeliverySchedulingService deliverySchedulingService;
