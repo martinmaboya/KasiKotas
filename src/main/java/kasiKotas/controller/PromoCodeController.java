@@ -156,4 +156,30 @@ public class PromoCodeController {
                 ));
             }
         }
+
+    // Debug endpoint to check promo code usage (Admin only)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/debug/{code}")
+    public ResponseEntity<?> debugPromoCode(@PathVariable String code) {
+        try {
+            PromoCode promo = promoCodeService.getPromoCodeByCode(code);
+            return ResponseEntity.ok(Map.of(
+                "code", promo.getCode(),
+                "currentUsageCount", promo.getUsageCount(),
+                "maxUsages", promo.getMaxUsages(),
+                "remainingUses", promo.getMaxUsages() - promo.getUsageCount(),
+                "isAtLimit", promo.getUsageCount() >= promo.getMaxUsages(),
+                "expiryDate", promo.getExpiryDate(),
+                "isExpired", promo.getExpiryDate().isBefore(java.time.LocalDate.now()),
+                "version", promo.getVersion()
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "Internal Server Error",
+                "message", "An unexpected error occurred: " + e.getMessage()
+            ));
+        }
+    }
 }

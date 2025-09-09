@@ -79,5 +79,19 @@ public class PromoCodeService {
         return promoCodeRepository.findByCode(code)
                 .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' does not exist"));
     }
+
+    /**
+     * Refresh promo code data from database (for debugging)
+     */
+    @Transactional
+    public PromoCode refreshPromoCode(String code) {
+        PromoCode promo = promoCodeRepository.findByCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' does not exist"));
+        
+        // Force refresh from database
+        promoCodeRepository.flush();
+        
+        return promo;
+    }
 }
 
