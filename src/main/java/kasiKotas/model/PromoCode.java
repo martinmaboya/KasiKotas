@@ -1,6 +1,6 @@
-// src/main/java/kasiKotas/model/PromoCode.java
 package kasiKotas.model;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -33,6 +33,30 @@ public class PromoCode {
 
     @Column(nullable = false)
     private Integer percentageDiscount; // 1 = percentage, 0 = fixed amount (using Integer for better DB compatibility)
+
+    // Custom setter to handle both boolean and integer values from JSON
+    @JsonSetter("percentageDiscount")
+    public void setPercentageDiscount(Object value) {
+        if (value instanceof Boolean) {
+            this.percentageDiscount = (Boolean) value ? 1 : 0;
+        } else if (value instanceof Integer) {
+            this.percentageDiscount = (Integer) value;
+        } else if (value instanceof Number) {
+            this.percentageDiscount = ((Number) value).intValue();
+        } else {
+            this.percentageDiscount = 0; // default to fixed amount
+        }
+    }
+
+    // Standard getter
+    public Integer getPercentageDiscount() {
+        return this.percentageDiscount;
+    }
+
+    // Convenience method to check if it's a percentage discount
+    public boolean isPercentageDiscount() {
+        return this.percentageDiscount != null && this.percentageDiscount == 1;
+    }
 
     @Column(nullable = false)
     private Integer maxUsages; // Max times the code can be used (e.g., 10)
