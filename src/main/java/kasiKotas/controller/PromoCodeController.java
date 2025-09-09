@@ -182,4 +182,27 @@ public class PromoCodeController {
             ));
         }
     }
+
+    // Reset usage count for testing (Admin only)
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/reset-usage/{code}")
+    public ResponseEntity<?> resetUsageCount(@PathVariable String code) {
+        try {
+            PromoCode resetPromo = promoCodeService.resetUsageCount(code);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Usage count reset to 0 for promo code '" + code + "'",
+                "currentUsageCount", resetPromo.getUsageCount(),
+                "maxUsages", resetPromo.getMaxUsages()
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "success", false,
+                "error", "Internal Server Error",
+                "message", "An unexpected error occurred: " + e.getMessage()
+            ));
+        }
+    }
 }

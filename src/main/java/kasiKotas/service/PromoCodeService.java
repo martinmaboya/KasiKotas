@@ -50,17 +50,28 @@ public class PromoCodeService {
 
     @Transactional
     public PromoCode usePromoCode(String code, Double orderAmount) {
-        // Validate the promo code first
+        // First validate the promo code
         PromoCode promo = validatePromoCode(code, orderAmount);
         
-        // Increment usage count
-        promo.setUsageCount(promo.getUsageCount() + 1);
+        // Use atomic database operation to increment usage count
+        int rowsUpdated = promoCodeRepository.incrementUsageCount(code);
         
-        // Save the updated promo code and flush to ensure immediate persistence
-        PromoCode updatedPromo = promoCodeRepository.saveAndFlush(promo);
+        if (rowsUpdated == 0) {
+            // This means either the promo code doesn't exist or usage limit was reached
+            // Let's check the current state
+            PromoCode currentPromo = promoCodeRepository.findByCode(code).orElse(null);
+            if (currentPromo != null && currentPromo.getUsageCount() >= currentPromo.getMaxUsages()) {
+                throw new IllegalStateException("Promo code '" + code + "' has reached its maximum usage limit of " + currentPromo.getMaxUsages() + " times");
+            } else {
+                throw new IllegalStateException("Failed to apply promo code '" + code + "'. Please try again.");
+            }
+        }
         
-        System.out.println("DEBUG: Promo code '" + code + "' usage updated from " + 
-                          (promo.getUsageCount() - 1) + " to " + updatedPromo.getUsageCount());
+        // Fetch the updated promo code
+        PromoCode updatedPromo = promoCodeRepository.findByCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' not found after update"));
+        
+        System.out.println("DEBUG: Promo code '" + code + "' usage count is now " + updatedPromo.getUsageCount() + " out of " + updatedPromo.getMaxUsages());
         
         return updatedPromo;
     }
@@ -92,6 +103,31 @@ public class PromoCodeService {
         promoCodeRepository.flush();
         
         return promo;
+    }
+
+    /**
+     * Reset usage count for testing purposes (Admin only)
+     */
+    @Transactional
+    public PromoCode resetUsageCount(String code) {
+        // Verify promo code exists first
+        PromoCode promo = promoCodeRepository.findByCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' does not exist"));
+        
+        // Use atomic database operation to reset usage count
+        int rowsUpdated = promoCodeRepository.resetUsageCount(code);
+        
+        if (rowsUpdated == 0) {
+            throw new IllegalStateException("Failed to reset usage count for promo code '" + code + "'");
+        }
+        
+        // Fetch the updated promo code
+        PromoCode updated = promoCodeRepository.findByCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' not found after reset"));
+        
+        System.out.println("DEBUG: Reset usage count for promo code '" + code + "' to " + updated.getUsageCount());
+        
+        return updated;
     }
 }
 
