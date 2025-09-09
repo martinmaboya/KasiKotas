@@ -23,36 +23,59 @@ public class PromoCodeService {
     }
 
     public PromoCode validatePromoCode(String code, Double orderAmount) {
+        // Check if promo code exists
         PromoCode promo = promoCodeRepository.findByCode(code)
-                .orElseThrow(() -> new RuntimeException("Promo code not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid promo code: '" + code + "' does not exist"));
 
+        // Check if promo code has reached usage limit
         if (promo.getUsageCount() >= promo.getMaxUsages()) {
-            throw new RuntimeException("Promo code usage limit reached");
+            throw new IllegalStateException("Promo code '" + code + "' has reached its maximum usage limit of " + promo.getMaxUsages() + " times");
         }
 
+        // Check if promo code has expired
         if (promo.getExpiryDate().isBefore(LocalDate.now())) {
-            throw new RuntimeException("Promo code has expired");
+            throw new IllegalStateException("Promo code '" + code + "' has expired on " + promo.getExpiryDate());
         }
 
+        // Check if order amount meets minimum requirement
         if (orderAmount != null && orderAmount < promo.getMinimumOrderAmount()) {
-            throw new RuntimeException("Order amount does not meet minimum required for promo code");
+            throw new IllegalArgumentException("Order amount R" + String.format("%.2f", orderAmount) + 
+                " does not meet the minimum required amount of R" + String.format("%.2f", promo.getMinimumOrderAmount()) + 
+                " for promo code '" + code + "'");
         }
 
         return promo;
     }
 
-    public void usePromoCode(String code, Double orderAmount) {
+    public PromoCode usePromoCode(String code, Double orderAmount) {
+        // Validate the promo code first
         PromoCode promo = validatePromoCode(code, orderAmount);
+        
+        // Increment usage count
         promo.setUsageCount(promo.getUsageCount() + 1);
-        if (promo.getUsageCount() >= promo.getMaxUsages()) {
-            promoCodeRepository.delete(promo);
-        } else {
-            promoCodeRepository.save(promo);
-        }
+        
+        // Save the updated promo code
+        PromoCode updatedPromo = promoCodeRepository.save(promo);
+        
+        // If this was the last usage, you might want to delete it or keep it for record keeping
+        // For now, we'll keep it but it will be blocked by validatePromoCode on next attempt
+        
+        return updatedPromo;
     }
 
     public void deletePromoCode(Long id) {
+        if (!promoCodeRepository.existsById(id)) {
+            throw new IllegalArgumentException("Promo code with ID " + id + " does not exist");
+        }
         promoCodeRepository.deleteById(id);
+    }
+
+    /**
+     * Get promo code details without validation (for admin purposes)
+     */
+    public PromoCode getPromoCodeByCode(String code) {
+        return promoCodeRepository.findByCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' does not exist"));
     }
 }
 
