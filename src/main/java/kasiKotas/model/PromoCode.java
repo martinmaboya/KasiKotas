@@ -32,7 +32,7 @@ public class PromoCode {
     private Double discountAmount; // e.g., 10.00 (can be percentage or fixed)
 
     @Column(nullable = false)
-    private Boolean percentageDiscount; // true = percentage, false = fixed amount
+    private Integer percentageDiscount; // 1 = percentage, 0 = fixed amount (using Integer for better DB compatibility)
 
     @Column(nullable = false)
     private Integer maxUsages; // Max times the code can be used (e.g., 10)
