@@ -4,6 +4,7 @@ package kasiKotas;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.cache.annotation.EnableCaching;
 
 /**
  * Main Spring Boot application class for KasiKotas.
@@ -11,6 +12,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication // Marks this as a Spring Boot application
 @EnableScheduling // Enable scheduling for scheduled delivery processing
+@EnableCaching // Enable caching support
 public class KasiKotasApplication {
 
     public static void main(String[] args) {

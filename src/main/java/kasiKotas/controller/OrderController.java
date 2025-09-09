@@ -8,9 +8,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.CacheControl;
 import java.util.Optional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.concurrent.TimeUnit;
 
 import java.util.List;
 import java.util.Map;
@@ -76,25 +79,17 @@ public class OrderController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER') or #userId == authentication.principal.id")
     @GetMapping("/user/{userId}")
+    @Cacheable(value = "userOrders", key = "#userId")
     public ResponseEntity<List<Order>> getOrdersByUserId(@PathVariable Long userId) {
+        System.out.println("Fetching orders for user: " + userId + " (cache miss)");
+        
         try {
-            List<Order> orders = orderService.getOrdersByUserId(userId);
-            orders.forEach(order -> {
-                if (order.getUser() != null) {
-                    order.getUser().getId();
-                    order.getUser().getFirstName();
-                    order.getUser().getLastName();
-                    order.getUser().getEmail();
-                }
-                if (order.getOrderItems() != null) {
-                    order.getOrderItems().forEach(item -> {
-                        if (item.getProduct() != null) {
-                            item.getProduct().getName();
-                        }
-                    });
-                }
-            });
-            return ResponseEntity.ok(orders);
+            List<Order> orders = orderService.getOrdersByUserIdOptimized(userId);
+            
+            // Add cache control headers
+            return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(30, TimeUnit.SECONDS))
+                .body(orders);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }

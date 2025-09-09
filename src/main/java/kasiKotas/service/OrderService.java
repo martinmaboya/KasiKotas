@@ -250,6 +250,37 @@ public class OrderService {
     }
 
     /**
+     * Optimized version that retrieves all orders for a specific user.
+     * Uses a single query with JOIN FETCH to avoid N+1 query problems.
+     * This significantly improves performance for users with many orders.
+     * @param userId The ID of the user.
+     * @return A list of orders placed by the user.
+     * @throws IllegalArgumentException if user not found.
+     */
+    public List<Order> getOrdersByUserIdOptimized(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
+        
+        // Use optimized query that fetches all related data in one query
+        List<Order> orders = orderRepository.findByUserWithOrderItemsAndProducts(user);
+        
+        // Still need to process JSON fields for extras and sauces since they can't be fetched with JOIN
+        orders.forEach(order -> {
+            if (order.getOrderItems() != null) {
+                order.getOrderItems().forEach(orderItem -> {
+                    if (StringUtils.hasText(orderItem.getSelectedExtrasJson())) {
+                        try { objectMapper.readValue(orderItem.getSelectedExtrasJson(), new TypeReference<List<Extra>>() {}); } catch (Exception ignored) {}
+                    }
+                    if (StringUtils.hasText(orderItem.getSelectedSaucesJson())) {
+                        try { objectMapper.readValue(orderItem.getSelectedSaucesJson(), new TypeReference<List<Sauce>>() {}); } catch (Exception ignored) {}
+                    }
+                });
+            }
+        });
+        return orders;
+    }
+
+    /**
      * Retrieves all orders in the system (typically for admin view).
      * This method explicitly initializes lazy relationships to prevent LazyInitializationException
      * when entities are later serialized outside the transactional context.

@@ -74,10 +74,32 @@
 
                 <!-- MySQL Connector/J Dependency -->
                 <dependency>
+                    <groupId>mysql</groupId>
+                    <artifactId>mysql-connector-java</artifactId>
+                    <version>8.0.33</version>
+                    <scope>runtime</scope>
+                </dependency>
+
+                <!-- PostgreSQL Driver -->
+                <dependency>
                     <groupId>org.postgresql</groupId>
                     <artifactId>postgresql</artifactId>
                     <scope>runtime</scope>
                 </dependency>
+
+                <!-- Caffeine Cache -->
+                <dependency>
+                    <groupId>com.github.ben-manes.caffeine</groupId>
+                    <artifactId>caffeine</artifactId>
+                </dependency>
+
+                <!-- Spring Boot Cache Starter -->
+                <dependency>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-cache</artifactId>
+                </dependency>
+
+              
 
                 <!-- Lombok -->
                 <dependency>

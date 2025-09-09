@@ -4,6 +4,8 @@ package kasiKotas.repository;
 import kasiKotas.model.Order; // Import the Order entity
 import kasiKotas.model.User;  // Import the User entity (for finding orders by user)
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime; // This import is still here but the specific method requiring it is removed
@@ -23,6 +25,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Custom query method: find all Orders by a specific User.
     // This leverages the Many-to-One relationship defined in the Order entity.
     List<Order> findByUser(User user);
+
+    // Optimized query to fetch orders with all related data in one query to avoid N+1 queries
+    @Query("SELECT DISTINCT o FROM Order o " +
+           "LEFT JOIN FETCH o.orderItems oi " +
+           "LEFT JOIN FETCH oi.product p " +
+           "WHERE o.user = :user " +
+           "ORDER BY o.orderDate DESC")
+    List<Order> findByUserWithOrderItemsAndProducts(@Param("user") User user);
 
     // Custom query method: find orders by status
     // List<Order> findByStatus(Order.OrderStatus status);
