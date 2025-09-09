@@ -18,11 +18,13 @@ public class PromoCodeController {
 
 
 
+        @PreAuthorize("hasAuthority('ADMIN')")
         @PostMapping
         public ResponseEntity<PromoCode> createPromo(@RequestBody PromoCode promo) {
             return new ResponseEntity<>(promoCodeService.createPromoCode(promo), HttpStatus.CREATED);
         }
 
+        @PreAuthorize("hasAuthority('ADMIN')")
         @GetMapping
         public List<PromoCode> getAll() {
             return promoCodeService.getAllPromoCodes();
@@ -41,6 +43,7 @@ public class PromoCodeController {
     }
 
 
+        @PreAuthorize("hasAuthority('ADMIN')")
         @DeleteMapping("/{id}")
         public ResponseEntity<?> delete(@PathVariable Long id) {
             promoCodeService.deletePromoCode(id);
