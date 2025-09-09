@@ -4,6 +4,7 @@ import kasiKotas.model.PromoCode;
 import kasiKotas.repository.PromoCodeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -47,6 +48,7 @@ public class PromoCodeService {
         return promo;
     }
 
+    @Transactional
     public PromoCode usePromoCode(String code, Double orderAmount) {
         // Validate the promo code first
         PromoCode promo = validatePromoCode(code, orderAmount);
@@ -54,11 +56,11 @@ public class PromoCodeService {
         // Increment usage count
         promo.setUsageCount(promo.getUsageCount() + 1);
         
-        // Save the updated promo code
-        PromoCode updatedPromo = promoCodeRepository.save(promo);
+        // Save the updated promo code and flush to ensure immediate persistence
+        PromoCode updatedPromo = promoCodeRepository.saveAndFlush(promo);
         
-        // If this was the last usage, you might want to delete it or keep it for record keeping
-        // For now, we'll keep it but it will be blocked by validatePromoCode on next attempt
+        System.out.println("DEBUG: Promo code '" + code + "' usage updated from " + 
+                          (promo.getUsageCount() - 1) + " to " + updatedPromo.getUsageCount());
         
         return updatedPromo;
     }
