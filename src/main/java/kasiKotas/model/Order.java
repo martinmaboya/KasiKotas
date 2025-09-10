@@ -17,7 +17,7 @@ import java.util.List;
  * Represents a customer's order in the KasiKotas system.
  * This is a JPA Entity, mapping to an 'orders' table in the database.
  *
- * Includes relationships to User and OrderItems, and now a paymentMethod field.
+ * Includes relationships to User and OrderItems, and now includes promo code and financial breakdown fields.
  */
 @Entity
 @Table(name = "orders")
@@ -54,13 +54,30 @@ public class Order {
     @Column(columnDefinition = "TEXT") // Use TEXT for potentially longer addresses
     private String shippingAddress;
 
-    // NEW: Field for payment method (e.g., "COD", "EFT")
+    // Field for payment method (e.g., "COD", "EFT")
     @Column(nullable = false)
     private String paymentMethod; // e.g., "cod", "eft"
 
-    // NEW: Field for scheduled delivery time (null for immediate delivery)
+    // Field for delivery method (e.g., "DELIVERY", "COLLECTION")
+    @Column
+    private String deliveryMethod; // e.g., "DELIVERY", "COLLECTION"
+
+    // Field for scheduled delivery time (null for immediate delivery)
     @Column(name = "scheduled_delivery_time")
     private LocalDateTime scheduledDeliveryTime;
+
+    // NEW: Promo code and financial breakdown fields
+    @Column
+    private String promoCode; // The promo code applied (e.g., "SAVE20")
+
+    @Column
+    private Double subtotal; // Order subtotal (before delivery and discount)
+
+    @Column
+    private Double deliveryFee; // Delivery fee amount
+
+    @Column
+    private Double discountAmount; // Discount amount applied by promo code
 
     // One-to-Many relationship with OrderItem
     // 'mappedBy' indicates that the 'order' field in the OrderItem entity owns the relationship.
@@ -73,15 +90,6 @@ public class Order {
 
     @Version // For optimistic locking to handle concurrent updates gracefully
     private Long version;
-
-    // Removed promo code fields based on previous instructions
-    // @ManyToOne(fetch = FetchType.LAZY)
-    // @JoinColumn(name = "promo_code_id")
-    // @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "orders"})
-    // private PromoCode appliedPromoCode;
-    //
-    // private Double discountAmount;
-
 
     /**
      * Enum for defining possible order statuses.
@@ -97,13 +105,22 @@ public class Order {
     }
 
     /**
-     * Calculates the total amount of the order by summing up prices of all order items.
-     * This method is typically called before saving the order to ensure total amount is accurate.
-     * Promo code logic has been removed.
+     * UPDATED: This method now preserves the totalAmount calculated by the frontend
+     * when promo codes are applied, rather than recalculating it.
+     *
+     * Only calculates totalAmount if it's not already set (for backward compatibility).
      */
     @PrePersist // Called before the entity is first persisted (inserted)
     @PreUpdate  // Called before the entity is updated
     public void calculateTotalAmount() {
+        // If totalAmount is already set (e.g., from frontend with promo code calculation),
+        // don't recalculate it to preserve promo code discounts
+        if (this.totalAmount != null && this.totalAmount > 0) {
+            System.out.println("Total amount already set: " + this.totalAmount + " (preserving frontend calculation)");
+            return;
+        }
+
+        // Only calculate if totalAmount is not set (backward compatibility)
         if (orderItems == null) {
             this.totalAmount = 0.0;
             return;
@@ -144,11 +161,28 @@ public class Order {
             }
         }
 
-        // Removed discount application logic
-        // if (this.appliedPromoCode != null && this.discountAmount != null) {
-        //     calculatedTotal = Math.max(0, calculatedTotal - this.discountAmount);
-        // }
-
         this.totalAmount = calculatedTotal;
+        System.out.println("Calculated total amount: " + this.totalAmount + " (no promo code data provided)");
+    }
+
+    /**
+     * Helper method to check if this order has a promo code applied
+     */
+    public boolean hasPromoCode() {
+        return this.promoCode != null && !this.promoCode.trim().isEmpty();
+    }
+
+    /**
+     * Helper method to get the final total after all calculations
+     * (subtotal + delivery fee - discount)
+     */
+    public Double getCalculatedTotal() {
+        if (hasPromoCode() && subtotal != null) {
+            double total = (subtotal != null ? subtotal : 0.0) +
+                    (deliveryFee != null ? deliveryFee : 0.0) -
+                    (discountAmount != null ? discountAmount : 0.0);
+            return Math.max(0.0, total); // Ensure total is never negative
+        }
+        return this.totalAmount;
     }
 }

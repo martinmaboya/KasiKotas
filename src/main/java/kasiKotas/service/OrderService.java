@@ -106,11 +106,8 @@ public class OrderService {
 
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(Order.OrderStatus.PENDING);
-        // Removed: order.setDiscountAmount(0.0); as per user request to remove discount logic
 
-        double totalAmount = 0.0;
-
-        // 3. Process Order Items and Calculate Total
+        // 3. Process Order Items and validate stock
         if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
             throw new IllegalArgumentException("Order must contain at least one item.");
         }
@@ -133,14 +130,10 @@ public class OrderService {
             item.setPriceAtTimeOfOrder(product.getPrice());
             item.setOrder(order);
 
-            double itemTotal = item.getQuantity() * item.getPriceAtTimeOfOrder();
-
+            // Validate extras and sauces JSON (but don't recalculate total)
             if (StringUtils.hasText(item.getSelectedExtrasJson())) {
                 try {
-                    List<Extra> selectedExtras = objectMapper.readValue(item.getSelectedExtrasJson(), new TypeReference<List<Extra>>() {});
-                    for (Extra extra : selectedExtras) {
-                        itemTotal += (extra.getPrice() * item.getQuantity());
-                    }
+                    objectMapper.readValue(item.getSelectedExtrasJson(), new TypeReference<List<Extra>>() {});
                 } catch (Exception e) {
                     System.err.println("Failed to parse selectedExtrasJson for order item " + item.getProduct().getName() + ": " + e.getMessage());
                 }
@@ -153,22 +146,22 @@ public class OrderService {
                     System.err.println("Failed to parse selectedSaucesJson for order item " + item.getProduct().getName() + ": " + e.getMessage());
                 }
             }
-
-            totalAmount += itemTotal;
         }
 
-        order.setTotalAmount(totalAmount);
+        // 4. Use the total amount calculated by frontend (includes promo code discount)
+        // Don't recalculate - trust the frontend calculation that includes promo codes
+        System.out.println("Order created with promo code: " + order.getPromoCode());
+        System.out.println("Subtotal: " + order.getSubtotal());
+        System.out.println("Delivery Fee: " + order.getDeliveryFee());
+        System.out.println("Discount Amount: " + order.getDiscountAmount());
+        System.out.println("Final Total Amount: " + order.getTotalAmount());
 
         Order savedOrder = orderRepository.save(order);
         order.getOrderItems().forEach(item -> item.setOrder(savedOrder));
         orderItemRepository.saveAll(order.getOrderItems());
 
-        // Commented out PDF generation and email sending as per request
-        // sendOrderConfirmationEmails(savedOrder);
-
         return savedOrder;
     }
-
     /**
      * Helper method to send order confirmation emails.
      * This is called asynchronously to not block the main transaction.

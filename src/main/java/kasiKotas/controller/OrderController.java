@@ -140,113 +140,145 @@ public class OrderController {
     @PreAuthorize("isAuthenticated()")
     @PostMapping
     public ResponseEntity<Object> createOrder(@RequestBody Map<String, Object> orderRequest) {
-    try {
-        // ✅ Check current order count and limit
-        long currentOrderCount = orderService.getTotalOrderCount();
-        Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
+        try {
+            // ✅ Check current order count and limit
+            long currentOrderCount = orderService.getTotalOrderCount();
+            Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
 
-        if (limitOptional.isPresent()) {
-            int limit = limitOptional.get().getLimitValue();
-            if (limit == 0 || currentOrderCount >= limit) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(Map.of("message", "Daily order limit reached. We are no longer taking orders for today."));
+            if (limitOptional.isPresent()) {
+                int limit = limitOptional.get().getLimitValue();
+                if (limit == 0 || currentOrderCount >= limit) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("message", "Daily order limit reached. We are no longer taking orders for today."));
+                }
             }
-        }
 
-        // 🟢 Continue with normal order creation
-        Object userIdObj = orderRequest.get("userId");
-        if (userIdObj == null) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Missing userId in order request"));
-        }
-        Long userId;
-        try {
-            userId = ((Number) userIdObj).longValue();
-        } catch (Exception ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Invalid userId format"));
-        }
-
-        String shippingAddress = (String) orderRequest.get("shippingAddress");
-        String paymentMethod = (String) orderRequest.get("paymentMethod");
-        Object itemsRawObj = orderRequest.get("orderItems");
-        if (itemsRawObj == null) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Missing orderItems in order request"));
-        }
-        List<Map<String, Object>> itemsRaw;
-        try {
-            itemsRaw = (List<Map<String, Object>>) itemsRawObj;
-        } catch (Exception ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Invalid orderItems format"));
-        }
-
-        // NEW: Handle scheduled delivery time
-        LocalDateTime scheduledDeliveryTime = null;
-        Object scheduledTimeObj = orderRequest.get("scheduledDeliveryTime");
-        if (scheduledTimeObj != null && !scheduledTimeObj.toString().isEmpty()) {
+            // 🟢 Extract order data including promo code information
+            Object userIdObj = orderRequest.get("userId");
+            if (userIdObj == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Missing userId in order request"));
+            }
+            Long userId;
             try {
-                scheduledDeliveryTime = LocalDateTime.parse(scheduledTimeObj.toString());
-                // Validate scheduled delivery time
-                validateScheduledDeliveryTime(scheduledDeliveryTime);
-            } catch (DateTimeParseException e) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("message", "Invalid scheduled delivery time format"));
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("message", e.getMessage()));
+                userId = ((Number) userIdObj).longValue();
+            } catch (Exception ex) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid userId format"));
             }
-        }
 
-        Order newOrder = new Order();
-        newOrder.setUser(new User(userId));
-        newOrder.setShippingAddress(shippingAddress);
-        newOrder.setPaymentMethod(paymentMethod);
-        newOrder.setScheduledDeliveryTime(scheduledDeliveryTime);
+            String shippingAddress = (String) orderRequest.get("shippingAddress");
+            String paymentMethod = (String) orderRequest.get("paymentMethod");
+            String deliveryMethod = (String) orderRequest.get("deliveryMethod");
+            String promoCode = (String) orderRequest.get("promoCode");
 
-        List<OrderItem> orderItems = new ArrayList<>();
-        for (Map<String, Object> itemRaw : itemsRaw) {
-            OrderItem item = new OrderItem();
-            Map<String, Object> productMap = (Map<String, Object>) itemRaw.get("product");
-            if (productMap != null && productMap.containsKey("id")) {
-                Object productIdObj = productMap.get("id");
-                if (productIdObj == null) {
-                    return ResponseEntity.badRequest().body(Map.of("message", "Missing product id in order item"));
+            // Extract financial data from frontend calculation
+            Double subtotal = null;
+            Double deliveryFee = null;
+            Double discountAmount = null;
+            Double totalAmount = null;
+
+            try {
+                if (orderRequest.get("subtotal") != null) {
+                    subtotal = ((Number) orderRequest.get("subtotal")).doubleValue();
+                }
+                if (orderRequest.get("deliveryFee") != null) {
+                    deliveryFee = ((Number) orderRequest.get("deliveryFee")).doubleValue();
+                }
+                if (orderRequest.get("discountAmount") != null) {
+                    discountAmount = ((Number) orderRequest.get("discountAmount")).doubleValue();
+                }
+                if (orderRequest.get("totalAmount") != null) {
+                    totalAmount = ((Number) orderRequest.get("totalAmount")).doubleValue();
+                }
+            } catch (Exception ex) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid financial data format"));
+            }
+
+            Object itemsRawObj = orderRequest.get("orderItems");
+            if (itemsRawObj == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Missing orderItems in order request"));
+            }
+            List<Map<String, Object>> itemsRaw;
+            try {
+                itemsRaw = (List<Map<String, Object>>) itemsRawObj;
+            } catch (Exception ex) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid orderItems format"));
+            }
+
+            // Handle scheduled delivery time
+            LocalDateTime scheduledDeliveryTime = null;
+            Object scheduledTimeObj = orderRequest.get("scheduledDeliveryTime");
+            if (scheduledTimeObj != null && !scheduledTimeObj.toString().isEmpty()) {
+                try {
+                    scheduledDeliveryTime = LocalDateTime.parse(scheduledTimeObj.toString());
+                    validateScheduledDeliveryTime(scheduledDeliveryTime);
+                } catch (DateTimeParseException e) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", "Invalid scheduled delivery time format"));
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", e.getMessage()));
+                }
+            }
+
+            Order newOrder = new Order();
+            newOrder.setUser(new User(userId));
+            newOrder.setShippingAddress(shippingAddress);
+            newOrder.setPaymentMethod(paymentMethod);
+            newOrder.setDeliveryMethod(deliveryMethod);
+            newOrder.setScheduledDeliveryTime(scheduledDeliveryTime);
+
+            // Set promo code and financial data from frontend
+            newOrder.setPromoCode(promoCode);
+            newOrder.setSubtotal(subtotal);
+            newOrder.setDeliveryFee(deliveryFee);
+            newOrder.setDiscountAmount(discountAmount);
+            newOrder.setTotalAmount(totalAmount); // Use the calculated total from frontend
+
+            List<OrderItem> orderItems = new ArrayList<>();
+            for (Map<String, Object> itemRaw : itemsRaw) {
+                OrderItem item = new OrderItem();
+                Map<String, Object> productMap = (Map<String, Object>) itemRaw.get("product");
+                if (productMap != null && productMap.containsKey("id")) {
+                    Object productIdObj = productMap.get("id");
+                    if (productIdObj == null) {
+                        return ResponseEntity.badRequest().body(Map.of("message", "Missing product id in order item"));
+                    }
+                    try {
+                        Product product = new Product();
+                        product.setId(((Number) productIdObj).longValue());
+                        item.setProduct(product);
+                    } catch (Exception ex) {
+                        return ResponseEntity.badRequest().body(Map.of("message", "Invalid product id format in order item"));
+                    }
+                }
+                Object quantityObj = itemRaw.get("quantity");
+                if (quantityObj == null) {
+                    return ResponseEntity.badRequest().body(Map.of("message", "Missing quantity in order item"));
                 }
                 try {
-                    Product product = new Product();
-                    product.setId(((Number) productIdObj).longValue());
-                    item.setProduct(product);
+                    item.setQuantity(((Number) quantityObj).intValue());
                 } catch (Exception ex) {
-                    return ResponseEntity.badRequest().body(Map.of("message", "Invalid product id format in order item"));
+                    return ResponseEntity.badRequest().body(Map.of("message", "Invalid quantity format in order item"));
                 }
+                item.setCustomizationNotes((String) itemRaw.get("customizationNotes"));
+                item.setSelectedExtrasJson((String) itemRaw.get("selectedExtrasJson"));
+                item.setSelectedSaucesJson((String) itemRaw.get("selectedSaucesJson"));
+                orderItems.add(item);
             }
-            Object quantityObj = itemRaw.get("quantity");
-            if (quantityObj == null) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Missing quantity in order item"));
-            }
-            try {
-                item.setQuantity(((Number) quantityObj).intValue());
-            } catch (Exception ex) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Invalid quantity format in order item"));
-            }
-            item.setCustomizationNotes((String) itemRaw.get("customizationNotes"));
-            item.setSelectedExtrasJson((String) itemRaw.get("selectedExtrasJson"));
-            item.setSelectedSaucesJson((String) itemRaw.get("selectedSaucesJson"));
-            orderItems.add(item);
+            newOrder.setOrderItems(orderItems);
+
+            Order savedOrder = orderService.createOrder(newOrder);
+
+            return new ResponseEntity<>(savedOrder, HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            System.err.println("Order creation failed: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("An unexpected error occurred during order creation: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "An unexpected error occurred during order creation."));
         }
-        newOrder.setOrderItems(orderItems);
-
-        Order savedOrder = orderService.createOrder(newOrder);
-
-        // This will still work as Order is an Object
-        return new ResponseEntity<>(savedOrder, HttpStatus.CREATED);
-    } catch (IllegalArgumentException e) {
-        System.err.println("Order creation failed: " + e.getMessage());
-        return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-    } catch (Exception e) {
-        System.err.println("An unexpected error occurred during order creation: " + e.getMessage());
-        e.printStackTrace();
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "An unexpected error occurred during order creation."));
     }
-}
     
     /**
      * Validates the scheduled delivery time according to business rules
