@@ -369,11 +369,6 @@ public class OrderService {
     public boolean deleteOrder(Long id) {
         Optional<Order> orderOptional = orderRepository.findById(id);
         if (orderOptional.isPresent()) {
-            Order order = orderOptional.get();
-            order.getOrderItems().forEach(orderItem -> {
-                productService.decreaseStock(orderItem.getProduct().getId(), -orderItem.getQuantity());
-            });
-
             orderRepository.deleteById(id);
             return true;
         }
