@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime; // This import is still here but the specific method requiring it is removed
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,7 +49,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     List<Order> findByScheduledDeliveryTimeIsNotNull();
 
-    // Removed: long countByOrderDateBetween(LocalDateTime startDateTime, LocalDateTime endDateTime);
-    // This method is removed as the requirement is now for a total order limit, not a daily one.
-    // The default JpaRepository.count() method will be used to get the total number of orders.
+    // Method to find all orders by orderDate between two LocalDateTime values for daily kota limit enforcement
+    List<Order> findAllByOrderDateBetween(LocalDateTime start, LocalDateTime end);
 }

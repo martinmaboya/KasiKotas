@@ -89,13 +89,29 @@ public class OrderService {
      * @throws IllegalArgumentException if validation fails (e.g., user not found, insufficient stock, limit reached).
      */
     public Order createOrder(Order order) {
-        // 1. Check Daily Order Limit
+        // 1. Check Daily Order Limit (by total kotas/items, not orders)
         List<DailyOrderLimit> limits = dailyOrderLimitRepository.findAll();
         if (!limits.isEmpty()) {
             DailyOrderLimit currentLimit = limits.get(0);
-            long totalOrdersCount = orderRepository.count();
-            if (currentLimit.getLimitValue() > 0 && totalOrdersCount >= currentLimit.getLimitValue()) {
-                throw new IllegalArgumentException("Order limit reached. We are currently not taking new orders.");
+
+            // Get today's date range
+            LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+            LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+            // Sum all kotas/items ordered today
+            List<Order> todaysOrders = orderRepository.findAllByOrderDateBetween(startOfDay, endOfDay);
+            int kotasOrderedToday = todaysOrders.stream()
+                .flatMap(orderObj -> orderObj.getOrderItems().stream())
+                .mapToInt(OrderItem::getQuantity)
+                .sum();
+
+            // Sum kotas/items in this new order
+            int kotasInThisOrder = order.getOrderItems().stream()
+                .mapToInt(OrderItem::getQuantity)
+                .sum();
+
+            if (currentLimit.getLimitValue() > 0 && (kotasOrderedToday + kotasInThisOrder) > currentLimit.getLimitValue()) {
+                throw new IllegalArgumentException("Order limit reached. Only " + (currentLimit.getLimitValue() - kotasOrderedToday) + " kota(s) left for today.");
             }
         }
 
@@ -112,13 +128,21 @@ public class OrderService {
             throw new IllegalArgumentException("Order must contain at least one item.");
         }
 
+        // STRICT PRE-CHECK: Ensure all items have enough stock before making any changes
         for (OrderItem item : order.getOrderItems()) {
             Product product = productRepository.findById(item.getProduct().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProduct().getId()));
-
             if (item.getQuantity() == null || item.getQuantity() <= 0) {
                 throw new IllegalArgumentException("Quantity for product " + product.getName() + " must be positive.");
             }
+            if (product.getStock() < item.getQuantity()) {
+                throw new IllegalArgumentException("Insufficient stock for product: " + product.getName() + ". Only " + product.getStock() + " left, but " + item.getQuantity() + " requested.");
+            }
+        }
+        // Now, all items have enough stock. Proceed to decrease stock and save order.
+        for (OrderItem item : order.getOrderItems()) {
+            Product product = productRepository.findById(item.getProduct().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProduct().getId()));
 
             // Check stock and decrease
             Optional<Product> updatedProductOptional = productService.decreaseStock(product.getId(), item.getQuantity());
