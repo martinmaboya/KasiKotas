@@ -19,12 +19,12 @@ import java.util.List;
 public class DeliverySchedulingService {
 
     private final OrderRepository orderRepository;
-    private final EmailService emailService;
+    // private final EmailService emailService;
     
     @Autowired
-    public DeliverySchedulingService(OrderRepository orderRepository, EmailService emailService) {
+    public DeliverySchedulingService(OrderRepository orderRepository) {
         this.orderRepository = orderRepository;
-        this.emailService = emailService;
+        // this.emailService = emailService;
     }
     
     /**

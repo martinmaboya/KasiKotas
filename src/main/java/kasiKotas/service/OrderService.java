@@ -7,7 +7,7 @@ import kasiKotas.repository.OrderItemRepository;
 import kasiKotas.repository.UserRepository;
 import kasiKotas.repository.ProductRepository;
 import kasiKotas.repository.DailyOrderLimitRepository;
-import kasiKotas.service.EmailService;
+// import kasiKotas.service.EmailService;
 import kasiKotas.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,7 +45,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
-    private final EmailService emailService;
+    // private final EmailService emailService;
     private final ProductService productService;
     private final DailyOrderLimitRepository dailyOrderLimitRepository;
 
@@ -60,7 +60,7 @@ public class OrderService {
             OrderItemRepository orderItemRepository,
             UserRepository userRepository,
             ProductRepository productRepository,
-            EmailService emailService,
+            // EmailService emailService,
             ProductService productService,
             DailyOrderLimitRepository dailyOrderLimitRepository,
             ObjectMapper objectMapper) {
@@ -68,7 +68,7 @@ public class OrderService {
         this.orderItemRepository = orderItemRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
-        this.emailService = emailService;
+        // this.emailService = emailService;
         this.productService = productService;
         this.dailyOrderLimitRepository = dailyOrderLimitRepository;
         this.objectMapper = objectMapper;
