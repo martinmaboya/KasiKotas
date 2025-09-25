@@ -110,8 +110,13 @@ public class OrderService {
                 .mapToInt(OrderItem::getQuantity)
                 .sum();
 
+            int remaining = currentLimit.getLimitValue() - kotasOrderedToday;
             if (currentLimit.getLimitValue() > 0 && (kotasOrderedToday + kotasInThisOrder) > currentLimit.getLimitValue()) {
-                throw new IllegalArgumentException("Order limit reached. Only " + (currentLimit.getLimitValue() - kotasOrderedToday) + " kota(s) left for today.");
+                if (remaining < 1) {
+                    throw new IllegalArgumentException("Order limit reached. No kotas left for today.");
+                } else {
+                    throw new IllegalArgumentException("Order limit reached. Only " + remaining + " kota(s) left for today.");
+                }
             }
         }
 
