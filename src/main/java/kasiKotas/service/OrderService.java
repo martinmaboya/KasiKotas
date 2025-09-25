@@ -82,36 +82,38 @@ public class OrderService {
      * - Calculating total amount (including extras).
      * - Decreasing product stock.
      * - Saving the order and its items (including customization notes, extras, and sauces).
-     * - Sending email confirmations to customer and admin.
+     *
      *
      * @param order The Order object to create, including its associated OrderItems and payment method.
      * @return The created and saved Order object.
      * @throws IllegalArgumentException if validation fails (e.g., user not found, insufficient stock, limit reached).
      */
     public Order createOrder(Order order) {
-        // 1. Check Daily Order Limit (by total kotas/items, not orders)
+        // 1. Enforce daily kota/item limit
         List<DailyOrderLimit> limits = dailyOrderLimitRepository.findAll();
         if (!limits.isEmpty()) {
             DailyOrderLimit currentLimit = limits.get(0);
 
-            // Get today's date range
-            LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+            LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
             LocalDateTime endOfDay = startOfDay.plusDays(1);
 
-            // Sum all kotas/items ordered today
             List<Order> todaysOrders = orderRepository.findAllByOrderDateBetween(startOfDay, endOfDay);
             int kotasOrderedToday = todaysOrders.stream()
-                .flatMap(orderObj -> orderObj.getOrderItems().stream())
+                .flatMap(o -> o.getOrderItems().stream())
                 .mapToInt(OrderItem::getQuantity)
                 .sum();
 
-            // Sum kotas/items in this new order
             int kotasInThisOrder = order.getOrderItems().stream()
                 .mapToInt(OrderItem::getQuantity)
                 .sum();
 
+            System.out.println("[OrderService] Kota limit check: kotasOrderedToday=" + kotasOrderedToday +
+                ", kotasInThisOrder=" + kotasInThisOrder +
+                ", limit=" + currentLimit.getLimitValue());
+
             if (currentLimit.getLimitValue() > 0 && (kotasOrderedToday + kotasInThisOrder) > currentLimit.getLimitValue()) {
-                throw new IllegalArgumentException("Order limit reached. Only " + (currentLimit.getLimitValue() - kotasOrderedToday) + " kota(s) left for today.");
+                throw new IllegalArgumentException("Order limit reached. Only " +
+                    (currentLimit.getLimitValue() - kotasOrderedToday) + " kota(s) left for today.");
             }
         }
 
@@ -123,12 +125,11 @@ public class OrderService {
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(Order.OrderStatus.PENDING);
 
-        // 3. Process Order Items and validate stock
+        // 3. Validate and process order items
         if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
             throw new IllegalArgumentException("Order must contain at least one item.");
         }
 
-        // STRICT PRE-CHECK: Ensure all items have enough stock before making any changes
         for (OrderItem item : order.getOrderItems()) {
             Product product = productRepository.findById(item.getProduct().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProduct().getId()));
@@ -136,15 +137,16 @@ public class OrderService {
                 throw new IllegalArgumentException("Quantity for product " + product.getName() + " must be positive.");
             }
             if (product.getStock() < item.getQuantity()) {
-                throw new IllegalArgumentException("Insufficient stock for product: " + product.getName() + ". Only " + product.getStock() + " left, but " + item.getQuantity() + " requested.");
+                throw new IllegalArgumentException("Insufficient stock for product: " + product.getName() +
+                        ". Only " + product.getStock() + " left, but " + item.getQuantity() + " requested.");
             }
         }
-        // Now, all items have enough stock. Proceed to decrease stock and save order.
+
+        // 4. Decrease stock and prepare order items
         for (OrderItem item : order.getOrderItems()) {
             Product product = productRepository.findById(item.getProduct().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProduct().getId()));
 
-            // Check stock and decrease
             Optional<Product> updatedProductOptional = productService.decreaseStock(product.getId(), item.getQuantity());
             if (updatedProductOptional.isEmpty()) {
                 throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
@@ -154,7 +156,7 @@ public class OrderService {
             item.setPriceAtTimeOfOrder(product.getPrice());
             item.setOrder(order);
 
-            // Validate extras and sauces JSON (but don't recalculate total)
+            // Validate extras and sauces JSON
             if (StringUtils.hasText(item.getSelectedExtrasJson())) {
                 try {
                     objectMapper.readValue(item.getSelectedExtrasJson(), new TypeReference<List<Extra>>() {});
@@ -162,7 +164,6 @@ public class OrderService {
                     System.err.println("Failed to parse selectedExtrasJson for order item " + item.getProduct().getName() + ": " + e.getMessage());
                 }
             }
-
             if (StringUtils.hasText(item.getSelectedSaucesJson())) {
                 try {
                     objectMapper.readValue(item.getSelectedSaucesJson(), new TypeReference<List<Sauce>>() {});
@@ -172,14 +173,7 @@ public class OrderService {
             }
         }
 
-        // 4. Use the total amount calculated by frontend (includes promo code discount)
-        // Don't recalculate - trust the frontend calculation that includes promo codes
-        System.out.println("Order created with promo code: " + order.getPromoCode());
-        System.out.println("Subtotal: " + order.getSubtotal());
-        System.out.println("Delivery Fee: " + order.getDeliveryFee());
-        System.out.println("Discount Amount: " + order.getDiscountAmount());
-        System.out.println("Final Total Amount: " + order.getTotalAmount());
-
+        // 5. Save order and items
         Order savedOrder = orderRepository.save(order);
         order.getOrderItems().forEach(item -> item.setOrder(savedOrder));
         orderItemRepository.saveAll(order.getOrderItems());
