@@ -108,12 +108,16 @@ public class OrderService {
                 .mapToInt(OrderItem::getQuantity)
                 .sum();
 
+            int limit = currentLimit.getLimitValue();
+            int totalIfPlaced = kotasOrderedToday + kotasInThisOrder;
+            int remaining = limit - kotasOrderedToday;
             System.out.println("[OrderService] Kota limit check: kotasOrderedToday=" + kotasOrderedToday +
                 ", kotasInThisOrder=" + kotasInThisOrder +
-                ", limit=" + currentLimit.getLimitValue());
+                ", totalIfPlaced=" + totalIfPlaced +
+                ", limit=" + limit + ", remaining=" + remaining);
 
-            int remaining = currentLimit.getLimitValue() - kotasOrderedToday;
-            if (currentLimit.getLimitValue() > 0 && (kotasOrderedToday + kotasInThisOrder) > currentLimit.getLimitValue()) {
+            // Only block if total would EXCEED the limit
+            if (limit > 0 && totalIfPlaced > limit) {
                 if (remaining < 1) {
                     throw new IllegalArgumentException("Order limit reached. No kotas left for today.");
                 } else {
