@@ -47,6 +47,21 @@ public class PasswordResetController {
         return ResponseEntity.ok(response);
     }
 
+    // New endpoint to fetch user's first name by email
+    @GetMapping("/user-firstname")
+    public ResponseEntity<Map<String, Object>> getUserFirstName(@RequestParam("email") String email) {
+        Optional<User> user = userRepository.findByEmail(email);
+        Map<String, Object> response = new HashMap<>();
+        if (user.isPresent()) {
+            response.put("success", true);
+            response.put("firstName", user.get().getFirstName());
+        } else {
+            response.put("success", false);
+            response.put("firstName", "");
+        }
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/get-reset-token")
     public ResponseEntity<Map<String, Object>> getResetToken(@RequestBody Map<String, String> request) {
         String email = request.get("email");
