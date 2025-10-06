@@ -209,11 +209,30 @@ public class OrderController {
             Object scheduledTimeObj = orderRequest.get("scheduledDeliveryTime");
             if (scheduledTimeObj != null && !scheduledTimeObj.toString().isEmpty()) {
                 try {
-                    scheduledDeliveryTime = LocalDateTime.parse(scheduledTimeObj.toString());
+                    String scheduledTimeStr = scheduledTimeObj.toString();
+                    System.out.println("Received scheduled delivery time: " + scheduledTimeStr);
+                    
+                    // Try multiple date formats that the frontend might send
+                    if (scheduledTimeStr.length() == 19 && scheduledTimeStr.contains("T")) {
+                        // ISO format: 2023-10-07T18:30:00
+                        scheduledDeliveryTime = LocalDateTime.parse(scheduledTimeStr);
+                    } else if (scheduledTimeStr.contains("T") && scheduledTimeStr.contains("Z")) {
+                        // ISO with Z: 2023-10-07T18:30:00Z
+                        scheduledDeliveryTime = LocalDateTime.parse(scheduledTimeStr.replace("Z", ""));
+                    } else if (scheduledTimeStr.contains("T") && scheduledTimeStr.contains("+")) {
+                        // ISO with timezone: 2023-10-07T18:30:00+02:00
+                        scheduledDeliveryTime = LocalDateTime.parse(scheduledTimeStr.substring(0, 19));
+                    } else {
+                        // Try default parse
+                        scheduledDeliveryTime = LocalDateTime.parse(scheduledTimeStr);
+                    }
+                    
                     validateScheduledDeliveryTime(scheduledDeliveryTime);
+                    System.out.println("Successfully parsed scheduled delivery time: " + scheduledDeliveryTime);
                 } catch (DateTimeParseException e) {
+                    System.err.println("Failed to parse scheduled delivery time: " + scheduledTimeObj + " - " + e.getMessage());
                     return ResponseEntity.badRequest()
-                            .body(Map.of("message", "Invalid scheduled delivery time format"));
+                            .body(Map.of("message", "Invalid scheduled delivery time format: " + scheduledTimeObj));
                 } catch (IllegalArgumentException e) {
                     return ResponseEntity.badRequest()
                             .body(Map.of("message", e.getMessage()));
