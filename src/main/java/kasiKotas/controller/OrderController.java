@@ -245,7 +245,9 @@ public class OrderController {
             }
 
             Order newOrder = new Order();
-            newOrder.setUser(new User(userId));
+            User user = new User(userId);
+            System.out.println("Creating order for userId: " + userId + ", User object ID: " + user.getId());
+            newOrder.setUser(user);
             newOrder.setShippingAddress(shippingAddress);
             newOrder.setPaymentMethod(paymentMethod);
             newOrder.setDeliveryMethod(deliveryMethod);

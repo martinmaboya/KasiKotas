@@ -121,8 +121,11 @@ public class OrderService {
         }
 
         // 2. Validate User
+        if (order.getUser() == null || order.getUser().getId() == null) {
+            throw new IllegalArgumentException("Order must have a valid user with ID.");
+        }
         User customer = userRepository.findById(order.getUser().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found."));
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + order.getUser().getId()));
         order.setUser(customer);
 
         order.setOrderDate(LocalDateTime.now());
