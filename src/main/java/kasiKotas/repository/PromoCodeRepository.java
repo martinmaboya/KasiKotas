@@ -10,16 +10,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 public interface PromoCodeRepository extends JpaRepository<PromoCode, Long> {
-    Optional<PromoCode> findByCode(String code);
+    Optional<PromoCode> findByCodeIgnoreCase(String code);
     
     @Modifying
     @Transactional
-    @Query("UPDATE PromoCode p SET p.usageCount = p.usageCount + 1 WHERE p.code = :code AND p.usageCount < p.maxUsages")
+    @Query("UPDATE PromoCode p SET p.usageCount = p.usageCount + 1 WHERE UPPER(p.code) = UPPER(:code) AND p.usageCount < p.maxUsages")
     int incrementUsageCount(@Param("code") String code);
     
     @Modifying
     @Transactional
-    @Query("UPDATE PromoCode p SET p.usageCount = 0 WHERE p.code = :code")
+    @Query("UPDATE PromoCode p SET p.usageCount = 0 WHERE UPPER(p.code) = UPPER(:code)")
     int resetUsageCount(@Param("code") String code);
 }
 

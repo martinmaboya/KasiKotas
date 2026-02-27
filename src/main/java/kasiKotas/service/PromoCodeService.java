@@ -24,9 +24,12 @@ public class PromoCodeService {
     }
 
     public PromoCode validatePromoCode(String code, Double orderAmount) {
-        // Check if promo code exists
-        PromoCode promo = promoCodeRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid promo code: '" + code + "' does not exist"));
+        // Trim whitespace from code
+        String trimmedCode = code != null ? code.trim() : "";
+        
+        // Check if promo code exists (case-insensitive)
+        PromoCode promo = promoCodeRepository.findByCodeIgnoreCase(trimmedCode)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid promo code: '" + trimmedCode + "' does not exist"));
 
         // Check if promo code has reached usage limit
         if (promo.getUsageCount() >= promo.getMaxUsages()) {
@@ -50,16 +53,19 @@ public class PromoCodeService {
 
     @Transactional
     public PromoCode usePromoCode(String code, Double orderAmount) {
+        // Trim whitespace from code
+        String trimmedCode = code != null ? code.trim() : "";
+        
         // First validate the promo code
-        PromoCode promo = validatePromoCode(code, orderAmount);
+        PromoCode promo = validatePromoCode(trimmedCode, orderAmount);
         
         // Use atomic database operation to increment usage count
-        int rowsUpdated = promoCodeRepository.incrementUsageCount(code);
+        int rowsUpdated = promoCodeRepository.incrementUsageCount(trimmedCode);
         
         if (rowsUpdated == 0) {
             // This means either the promo code doesn't exist or usage limit was reached
             // Let's check the current state
-            PromoCode currentPromo = promoCodeRepository.findByCode(code).orElse(null);
+            PromoCode currentPromo = promoCodeRepository.findByCodeIgnoreCase(trimmedCode).orElse(null);
             if (currentPromo != null && currentPromo.getUsageCount() >= currentPromo.getMaxUsages()) {
                 throw new IllegalStateException("Promo code '" + code + "' has reached its maximum usage limit of " + currentPromo.getMaxUsages() + " times");
             } else {
@@ -68,8 +74,8 @@ public class PromoCodeService {
         }
         
         // Fetch the updated promo code
-        PromoCode updatedPromo = promoCodeRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' not found after update"));
+        PromoCode updatedPromo = promoCodeRepository.findByCodeIgnoreCase(trimmedCode)
+                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + trimmedCode + "' not found after update"));
         
         System.out.println("DEBUG: Promo code '" + code + "' usage count is now " + updatedPromo.getUsageCount() + " out of " + updatedPromo.getMaxUsages());
         
@@ -87,8 +93,9 @@ public class PromoCodeService {
      * Get promo code details without validation (for admin purposes)
      */
     public PromoCode getPromoCodeByCode(String code) {
-        return promoCodeRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' does not exist"));
+        String trimmedCode = code != null ? code.trim() : "";
+        return promoCodeRepository.findByCodeIgnoreCase(trimmedCode)
+                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + trimmedCode + "' does not exist"));
     }
 
     /**
@@ -96,8 +103,9 @@ public class PromoCodeService {
      */
     @Transactional
     public PromoCode refreshPromoCode(String code) {
-        PromoCode promo = promoCodeRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' does not exist"));
+        String trimmedCode = code != null ? code.trim() : "";
+        PromoCode promo = promoCodeRepository.findByCodeIgnoreCase(trimmedCode)
+                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + trimmedCode + "' does not exist"));
         
         // Force refresh from database
         promoCodeRepository.flush();
@@ -110,22 +118,23 @@ public class PromoCodeService {
      */
     @Transactional
     public PromoCode resetUsageCount(String code) {
+        String trimmedCode = code != null ? code.trim() : "";
         // Verify promo code exists first
-        PromoCode promo = promoCodeRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' does not exist"));
+        PromoCode promo = promoCodeRepository.findByCodeIgnoreCase(trimmedCode)
+                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + trimmedCode + "' does not exist"));
         
         // Use atomic database operation to reset usage count
-        int rowsUpdated = promoCodeRepository.resetUsageCount(code);
+        int rowsUpdated = promoCodeRepository.resetUsageCount(trimmedCode);
         
         if (rowsUpdated == 0) {
             throw new IllegalStateException("Failed to reset usage count for promo code '" + code + "'");
         }
         
         // Fetch the updated promo code
-        PromoCode updated = promoCodeRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + code + "' not found after reset"));
+        PromoCode updated = promoCodeRepository.findByCodeIgnoreCase(trimmedCode)
+                .orElseThrow(() -> new IllegalArgumentException("Promo code '" + trimmedCode + "' not found after reset"));
         
-        System.out.println("DEBUG: Reset usage count for promo code '" + code + "' to " + updated.getUsageCount());
+        System.out.println("DEBUG: Reset usage count for promo code '" + trimmedCode + "' to " + updated.getUsageCount());
         
         return updated;
     }
