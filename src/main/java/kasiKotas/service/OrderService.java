@@ -98,8 +98,8 @@ public class OrderService {
             LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
             LocalDateTime endOfDay = startOfDay.plusDays(1);
 
-            // Sum all kotas/items ordered today
-            List<Order> todaysOrders = orderRepository.findAllByOrderDateBetween(startOfDay, endOfDay);
+            // Sum all kotas/items ordered today (excluding legacy orders without timestamps)
+            List<Order> todaysOrders = orderRepository.findAllByOrderDateBetweenExcludingNull(startOfDay, endOfDay);
             int kotasOrderedToday = todaysOrders.stream()
                 .flatMap(orderObj -> orderObj.getOrderItems().stream())
                 .mapToInt(OrderItem::getQuantity)

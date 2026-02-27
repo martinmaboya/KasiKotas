@@ -51,4 +51,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Method to find all orders by orderDate between two LocalDateTime values for daily kota limit enforcement
     List<Order> findAllByOrderDateBetween(LocalDateTime start, LocalDateTime end);
+    
+    // Query to find orders with non-null orderDate within a date range (excludes legacy orders without timestamps)
+    @Query("SELECT o FROM Order o WHERE o.orderDate IS NOT NULL AND o.orderDate >= :start AND o.orderDate < :end")
+    List<Order> findAllByOrderDateBetweenExcludingNull(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }
