@@ -91,7 +91,12 @@ public class OrderController {
                 .cacheControl(CacheControl.maxAge(30, TimeUnit.SECONDS))
                 .body(orders);
         } catch (IllegalArgumentException e) {
+            System.err.println("User not found: " + e.getMessage());
             return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            System.err.println("Error fetching orders for user " + userId + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
         }
     }
 

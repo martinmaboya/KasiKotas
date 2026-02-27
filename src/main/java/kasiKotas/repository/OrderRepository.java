@@ -27,10 +27,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByUser(User user);
 
     // Optimized query to fetch orders with all related data in one query to avoid N+1 queries
+    // Only fetch orders with valid orderDate to exclude legacy data
     @Query("SELECT DISTINCT o FROM Order o " +
            "LEFT JOIN FETCH o.orderItems oi " +
            "LEFT JOIN FETCH oi.product p " +
-           "WHERE o.user = :user " +
+           "WHERE o.user = :user AND o.orderDate IS NOT NULL " +
            "ORDER BY o.orderDate DESC")
     List<Order> findByUserWithOrderItemsAndProducts(@Param("user") User user);
 
