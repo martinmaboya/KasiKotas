@@ -37,7 +37,7 @@ public class Order {
     // JsonIgnoreProperties is crucial here to prevent infinite recursion/lazy loading issues
     // when serializing Order (which has a User) and User (which might have Orders).
     @ManyToOne(fetch = FetchType.LAZY) // Keeping LAZY as it's generally better for performance
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "customer_id", nullable = false)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "orders"}) // Ignore 'orders' in User to break loop
     private User user;
 
