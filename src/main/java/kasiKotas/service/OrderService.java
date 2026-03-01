@@ -420,4 +420,21 @@ public class OrderService {
     public long getTotalOrderCount() {
         return orderRepository.count();
     }
+
+    /**
+     * Counts the total number of kotas ordered today.
+     * This is used for display purposes to show admins how many kotas have been ordered.
+     * @return The total number of kotas (order items) ordered today.
+     */
+    public int getTodaysKotasOrdered() {
+        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        
+        List<Order> todaysOrders = orderRepository.findAllByOrderDateBetweenExcludingNull(startOfDay, endOfDay);
+        
+        return todaysOrders.stream()
+            .flatMap(order -> order.getOrderItems().stream())
+            .mapToInt(OrderItem::getQuantity)
+            .sum();
+    }
 }

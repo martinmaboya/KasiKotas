@@ -146,13 +146,13 @@ public class OrderController {
     @PostMapping
     public ResponseEntity<Object> createOrder(@RequestBody Map<String, Object> orderRequest) {
         try {
-            // ✅ Check current order count and limit
-            long currentOrderCount = orderService.getTotalOrderCount();
+            // ✅ Check if there's enough capacity in the order limit
             Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
 
             if (limitOptional.isPresent()) {
-                int limit = limitOptional.get().getLimitValue();
-                if (limit == 0 || currentOrderCount >= limit) {
+                int remainingCapacity = limitOptional.get().getLimitValue();
+                // If limit is 0, no more orders can be placed
+                if (remainingCapacity <= 0) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
                             .body(Map.of("message", "Daily order limit reached. We are no longer taking orders for today."));
                 }

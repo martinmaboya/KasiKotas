@@ -3,7 +3,9 @@ package kasiKotas.service;
 
 import kasiKotas.model.DailyOrderLimit;
 import kasiKotas.repository.DailyOrderLimitRepository;
+import kasiKotas.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,10 +22,14 @@ import java.util.List;
 public class DailyOrderLimitService {
 
     private final DailyOrderLimitRepository dailyOrderLimitRepository;
+    private final OrderService orderService;
 
     @Autowired
-    public DailyOrderLimitService(DailyOrderLimitRepository dailyOrderLimitRepository) {
+    public DailyOrderLimitService(
+            DailyOrderLimitRepository dailyOrderLimitRepository,
+            @Lazy OrderService orderService) {
         this.dailyOrderLimitRepository = dailyOrderLimitRepository;
+        this.orderService = orderService;
     }
 
     /**
@@ -36,10 +42,8 @@ public class DailyOrderLimitService {
         List<DailyOrderLimit> limits = dailyOrderLimitRepository.findAll();
         return limits.isEmpty() ? Optional.empty() : Optional.of(limits.get(0));
     }
-
-    /**
-     * Sets or updates the total order limit.
-     * If a limit record already exists, it updates it. Otherwise, it creates a new one.
+IMPORTANT: This sets the TOTAL limit. To account for orders already placed today,
+     * use setOrderLimitAccountingForToday() instead.
      * @param newLimitValue The new integer value for the total order limit.
      * @return The saved/updated DailyOrderLimit object.
      * @throws IllegalArgumentException if the new limit value is negative.
@@ -56,6 +60,33 @@ public class DailyOrderLimitService {
             orderLimit = existingLimitOptional.get();
             orderLimit.setLimitValue(newLimitValue);
         } else {
+            orderLimit = new DailyOrderLimit();
+            orderLimit.setLimitValue(newLimitValue);
+        }
+        return dailyOrderLimitRepository.save(orderLimit);
+    }
+
+    /**
+     * Sets the order limit accounting for kotas already ordered today.
+     * For example, if 26 kotas were already ordered and you set limit to 20,
+     * the remaining capacity will be 0 (20 - 26 = -6, which becomes 0).
+     * @param desiredLimit The desired total limit for today.
+     * @return The saved/updated DailyOrderLimit object.
+     */
+    public DailyOrderLimit setOrderLimitAccountingForToday(int desiredLimit) {
+        if (desiredLimit < 0) {
+            throw new IllegalArgumentException("Order limit cannot be negative.");
+        }
+
+        int todaysKotas = orderService.getTodaysKotasOrdered();
+        int remainingCapacity = desiredLimit - todaysKotas;
+        
+        // Don't allow setting negative remaining capacity
+        if (remainingCapacity < 0) {
+            remainingCapacity = 0;
+        }
+
+        return setOrderLimit(remainingCapacity
             orderLimit = new DailyOrderLimit();
             orderLimit.setLimitValue(newLimitValue);
         }
