@@ -31,6 +31,9 @@ public class PasswordResetToken {
     @Column(nullable = false, unique = true)
     private String token;
 
+    @Column(name = "otp", length = 6)
+    private String otp;
+
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 

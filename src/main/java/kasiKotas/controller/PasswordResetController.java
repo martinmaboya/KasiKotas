@@ -5,6 +5,7 @@ import kasiKotas.model.PasswordResetToken;
 import kasiKotas.model.User;
 import kasiKotas.repository.PasswordResetTokenRepository;
 import kasiKotas.repository.UserRepository;
+import kasiKotas.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -28,23 +30,58 @@ public class PasswordResetController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private EmailService emailService;
+
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, Object>> forgotPassword(@RequestBody Map<String, String> request) {
         String email = request.get("email");
         Optional<User> user = userRepository.findByEmail(email);
         Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Reset link sent if email exists");
-        if (user.isPresent()) {
+        
+        if (user.isEmpty()) {
+            // Return success even if user doesn't exist (security best practice)
+            response.put("success", true);
+            response.put("message", "If the email exists, an OTP has been sent");
+            return ResponseEntity.ok(response);
+        }
+        
+        try {
+            // Generate 6-digit OTP
+            String otp = generateOtp();
+            
+            // Create reset token with OTP
             PasswordResetToken resetToken = PasswordResetTokenFactory.create(
                 user.get().getId(),
                 email,
                 15 // expiry in minutes
             );
+            resetToken.setOtp(otp);
             tokenRepository.save(resetToken);
-            // Frontend will handle email sending
+            
+            // Send OTP email
+            emailService.sendOtpEmail(email, user.get().getFirstName(), otp);
+            
+            response.put("success", true);
+            response.put("message", "OTP has been sent to your email");
+            System.out.println("OTP sent to " + email + ": " + otp); // For debugging
+        } catch (Exception e) {
+            System.err.println("Error sending OTP: " + e.getMessage());
+            response.put("success", false);
+            response.put("message", "Failed to send OTP. Please try again later.");
+            return ResponseEntity.status(500).body(response);
         }
+        
         return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Generate a random 6-digit OTP
+     */
+    private String generateOtp() {
+        Random random = new Random();
+        int otp = 100000 + random.nextInt(900000);
+        return String.valueOf(otp);
     }
 
     // New endpoint to fetch user's first name by email
@@ -75,6 +112,38 @@ public class PasswordResetController {
         }
         return ResponseEntity.ok(response);
     }
+    
+    /**
+     * Verify OTP for password reset
+     */
+    @PostMapping("/verify-otp")
+    public ResponseEntity<Map<String, Object>> verifyOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String otp = request.get("otp");
+        Map<String, Object> response = new HashMap<>();
+        
+        // Find the most recent unused token for this email
+        Optional<PasswordResetToken> resetToken = tokenRepository
+            .findTopByEmailAndUsedFalseAndExpiresAtAfterOrderByCreatedAtDesc(email, LocalDateTime.now());
+        
+        if (resetToken.isEmpty()) {
+            response.put("success", false);
+            response.put("message", "No valid reset request found or OTP has expired");
+            return ResponseEntity.badRequest().body(response);
+        }
+        
+        // Verify OTP matches
+        if (!otp.equals(resetToken.get().getOtp())) {
+            response.put("success", false);
+            response.put("message", "Invalid OTP");
+            return ResponseEntity.badRequest().body(response);
+        }
+        
+        response.put("success", true);
+        response.put("message", "OTP verified successfully");
+        response.put("token", resetToken.get().getToken()); // Return token for next step
+        return ResponseEntity.ok(response);
+    }
 
     @PostMapping("/reset-password")
     public ResponseEntity<Map<String, Object>> resetPassword(@RequestBody Map<String, String> request) {
@@ -82,25 +151,81 @@ public class PasswordResetController {
         String token = request.get("token");
         String newPassword = request.get("newPassword");
         Map<String, Object> response = new HashMap<>();
+        
         Optional<PasswordResetToken> resetToken = tokenRepository.findByTokenAndEmailAndUsedFalseAndExpiresAtAfter(token, email, LocalDateTime.now());
         if (resetToken.isEmpty()) {
             response.put("success", false);
             response.put("message", "Invalid or expired token");
             return ResponseEntity.badRequest().body(response);
         }
+        
         Optional<User> user = userRepository.findById(resetToken.get().getUserId());
-        if (user.isPresent()) {
-            String hashedPassword = passwordEncoder.encode(newPassword);
-            user.get().setPassword(hashedPassword);
-            userRepository.save(user.get());
-            resetToken.get().setUsed(true);
-            tokenRepository.save(resetToken.get());
-            response.put("success", true);
-            response.put("message", "Password reset successfully");
-            return ResponseEntity.ok(response);
+        if (user.isEmpty()) {
+            response.put("success", false);
+            response.put("message", "User not found");
+            return ResponseEntity.badRequest().body(response);
         }
-        response.put("success", false);
-        response.put("message", "User not found");
-        return ResponseEntity.badRequest().body(response);
+        
+        // Update password
+        String hashedPassword = passwordEncoder.encode(newPassword);
+        user.get().setPassword(hashedPassword);
+        userRepository.save(user.get());
+        
+        // Mark token as used
+        resetToken.get().setUsed(true);
+        tokenRepository.save(resetToken.get());
+        
+        response.put("success", true);
+        response.put("message", "Password reset successfully");
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Reset password using OTP directly (alternative flow)
+     */
+    @PostMapping("/reset-password-with-otp")
+    public ResponseEntity<Map<String, Object>> resetPasswordWithOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String otp = request.get("otp");
+        String newPassword = request.get("newPassword");
+        Map<String, Object> response = new HashMap<>();
+        
+        // Find the most recent unused token for this email
+        Optional<PasswordResetToken> resetToken = tokenRepository
+            .findTopByEmailAndUsedFalseAndExpiresAtAfterOrderByCreatedAtDesc(email, LocalDateTime.now());
+        
+        if (resetToken.isEmpty()) {
+            response.put("success", false);
+            response.put("message", "No valid reset request found or OTP has expired");
+            return ResponseEntity.badRequest().body(response);
+        }
+        
+        // Verify OTP matches
+        if (!otp.equals(resetToken.get().getOtp())) {
+            response.put("success", false);
+            response.put("message", "Invalid OTP");
+            return ResponseEntity.badRequest().body(response);
+        }
+        
+        // Find user and update password
+        Optional<User> user = userRepository.findById(resetToken.get().getUserId());
+        if (user.isEmpty()) {
+            response.put("success", false);
+            response.put("message", "User not found");
+            return ResponseEntity.badRequest().body(response);
+        }
+        
+        // Update password
+        String hashedPassword = passwordEncoder.encode(newPassword);
+        user.get().setPassword(hashedPassword);
+        userRepository.save(user.get());
+        
+        // Mark token as used
+        resetToken.get().setUsed(true);
+        tokenRepository.save(resetToken.get());
+        
+        response.put("success", true);
+        response.put("message", "Password reset successfully");
+        return ResponseEntity.ok(response);
     }
 }
