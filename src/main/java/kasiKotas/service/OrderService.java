@@ -89,7 +89,7 @@ public class OrderService {
      * @throws IllegalArgumentException if validation fails (e.g., user not found, insufficient stock, limit reached).
      */
     public Order createOrder(Order order) {
-        // 1. Check Daily Order Limit and decrement it
+        // 1. Check Daily Order Limit - compare against TOTAL allowed for the day
         Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
         
         // Calculate kotas/items in this new order
@@ -99,20 +99,21 @@ public class OrderService {
 
         if (limitOptional.isPresent()) {
             DailyOrderLimit currentLimit = limitOptional.get();
-            int currentLimitValue = currentLimit.getLimitValue();
+            int totalLimitForDay = currentLimit.getLimitValue();
+            
+            // Get today's kotas already ordered
+            int kotasOrderedToday = getTodaysKotasOrdered();
+            
+            // Calculate remaining capacity
+            int remainingCapacity = totalLimitForDay - kotasOrderedToday;
             
             // Check if there's enough capacity
-            if (currentLimitValue > 0 && kotasInThisOrder > currentLimitValue) {
-                if (currentLimitValue < 1) {
+            if (totalLimitForDay > 0 && kotasInThisOrder > remainingCapacity) {
+                if (remainingCapacity < 1) {
                     throw new IllegalArgumentException("Order limit reached. No kotas left for today.");
                 } else {
-                    throw new IllegalArgumentException("Order limit reached. Only " + currentLimitValue + " kota(s) left for today.");
+                    throw new IllegalArgumentException("Order limit reached. Only " + remainingCapacity + " kota(s) left for today.");
                 }
-            }
-            
-            // Decrement the limit by the number of kotas ordered
-            if (currentLimitValue > 0) {
-                dailyOrderLimitService.decrementOrderLimit(kotasInThisOrder);
             }
         }
 
@@ -383,31 +384,15 @@ public class OrderService {
 
     /**
      * Deletes an order by its ID.
-     * Also restores the stock of products associated with the deleted order
-     * and increments the order limit back.
+     * Also restores the stock of products associated with the deleted order.
      * @param id The ID of the order to delete.
      * @return true if the order was found and deleted, false otherwise.
      */
     public boolean deleteOrder(Long id) {
         Optional<Order> orderOptional = orderRepository.findById(id);
         if (orderOptional.isPresent()) {
-            Order order = orderOptional.get();
-            
-            // Calculate kotas to restore to the limit
-            int kotasToRestore = order.getOrderItems().stream()
-                .mapToInt(OrderItem::getQuantity)
-                .sum();
-            
             // Delete the order
             orderRepository.deleteById(id);
-            
-            // Increment the limit back
-            try {
-                dailyOrderLimitService.incrementOrderLimit(kotasToRestore);
-            } catch (Exception e) {
-                System.err.println("Failed to restore order limit after deletion: " + e.getMessage());
-            }
-            
             return true;
         }
         return false;

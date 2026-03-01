@@ -150,9 +150,12 @@ public class OrderController {
             Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
 
             if (limitOptional.isPresent()) {
-                int remainingCapacity = limitOptional.get().getLimitValue();
-                // If limit is 0, no more orders can be placed
-                if (remainingCapacity <= 0) {
+                int totalLimitForDay = limitOptional.get().getLimitValue();
+                int kotasOrderedToday = orderService.getTodaysKotasOrdered();
+                int remainingCapacity = totalLimitForDay - kotasOrderedToday;
+                
+                // If remaining capacity is 0 or less, no more orders can be placed
+                if (totalLimitForDay > 0 && remainingCapacity <= 0) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
                             .body(Map.of("message", "Daily order limit reached. We are no longer taking orders for today."));
                 }

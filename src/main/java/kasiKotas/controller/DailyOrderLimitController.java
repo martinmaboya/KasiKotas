@@ -31,16 +31,39 @@ public class DailyOrderLimitController {
      */
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public ResponseEntity<DailyOrderLimit> getOrderLimit() {
-        return dailyOrderLimitService.getOrderLimit()
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<Map<String, Object>> getOrderLimit() {
+        Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
+        
+        if (limitOptional.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        DailyOrderLimit limit = limitOptional.get();
+        int totalLimit = limit.getLimitValue();
+        int kotasOrderedToday = orderService.getTodaysKotasOrdered();
+        int remainingCapacity = totalLimit - kotasOrderedToday;
+        
+        // Ensure remaining is not negative for display
+        if (remainingCapacity < 0) {
+            remainingCapacity = 0;
+        }
+        
+        Map<String, Object> response = Map.of(
+            "id", limit.getId(),
+            "limitValue", totalLimit,
+            "kotasOrderedToday", kotasOrderedToday,
+            "remainingCapacity", remainingCapacity
+        );
+        
+        return ResponseEntity.ok(response);
     }
 
     /**
      * Sets or updates the total order limit.
-     * This sets the REMAINING capacity directly.
-     * For example, if you set limit to 20, the system will allow 20 more kotas to be ordered.
+     * This sets the TOTAL capacity allowed for the day.
+     * For example, if you set limit to 20 and 26 kotas were already ordered,
+     * no more orders will be accepted (26 > 20).
+     * If you want to allow 20 more when 26 are ordered, set limit to 46.
      * Only accessible by ADMIN users.
      */
     @PreAuthorize("hasRole('ADMIN')")
@@ -51,7 +74,7 @@ public class DailyOrderLimitController {
             return ResponseEntity.badRequest().build();
         }
         try {
-            // Set the limit directly (remaining capacity)
+            // Set the limit as total capacity for the day
             DailyOrderLimit savedLimit = dailyOrderLimitService.setOrderLimit(limitValue);
             return ResponseEntity.ok(savedLimit);
         } catch (IllegalArgumentException e) {
