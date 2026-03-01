@@ -61,4 +61,54 @@ public class DailyOrderLimitService {
         }
         return dailyOrderLimitRepository.save(orderLimit);
     }
+
+    /**
+     * Decrements the order limit by a specified amount.
+     * This is called when an order is placed to reduce the remaining capacity.
+     * @param amount The amount to decrement (e.g., number of kotas ordered).
+     * @return The updated DailyOrderLimit object.
+     * @throws IllegalArgumentException if no limit exists or if decrement would make it negative.
+     */
+    public DailyOrderLimit decrementOrderLimit(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("Decrement amount cannot be negative.");
+        }
+
+        Optional<DailyOrderLimit> limitOptional = getOrderLimit();
+        if (limitOptional.isEmpty()) {
+            throw new IllegalArgumentException("No order limit configured.");
+        }
+
+        DailyOrderLimit orderLimit = limitOptional.get();
+        int newValue = orderLimit.getLimitValue() - amount;
+        
+        if (newValue < 0) {
+            throw new IllegalArgumentException("Cannot decrement limit below 0. Current: " + 
+                orderLimit.getLimitValue() + ", Requested decrement: " + amount);
+        }
+
+        orderLimit.setLimitValue(newValue);
+        return dailyOrderLimitRepository.save(orderLimit);
+    }
+
+    /**
+     * Increments the order limit by a specified amount.
+     * This is called when an order is cancelled/deleted to restore capacity.
+     * @param amount The amount to increment (e.g., number of kotas to restore).
+     * @return The updated DailyOrderLimit object.
+     */
+    public DailyOrderLimit incrementOrderLimit(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("Increment amount cannot be negative.");
+        }
+
+        Optional<DailyOrderLimit> limitOptional = getOrderLimit();
+        if (limitOptional.isEmpty()) {
+            throw new IllegalArgumentException("No order limit configured.");
+        }
+
+        DailyOrderLimit orderLimit = limitOptional.get();
+        orderLimit.setLimitValue(orderLimit.getLimitValue() + amount);
+        return dailyOrderLimitRepository.save(orderLimit);
+    }
 }

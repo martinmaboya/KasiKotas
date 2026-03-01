@@ -6,9 +6,9 @@ import kasiKotas.repository.OrderRepository;
 import kasiKotas.repository.OrderItemRepository;
 import kasiKotas.repository.UserRepository;
 import kasiKotas.repository.ProductRepository;
-import kasiKotas.repository.DailyOrderLimitRepository;
 // import kasiKotas.service.EmailService;
 import kasiKotas.service.ProductService;
+import kasiKotas.service.DailyOrderLimitService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -47,7 +47,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     // private final EmailService emailService;
     private final ProductService productService;
-    private final DailyOrderLimitRepository dailyOrderLimitRepository;
+    private final DailyOrderLimitService dailyOrderLimitService;
 
     private final ObjectMapper objectMapper;
 
@@ -62,7 +62,7 @@ public class OrderService {
             ProductRepository productRepository,
             // EmailService emailService,
             ProductService productService,
-            DailyOrderLimitRepository dailyOrderLimitRepository,
+            DailyOrderLimitService dailyOrderLimitService,
             ObjectMapper objectMapper) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
@@ -70,7 +70,7 @@ public class OrderService {
         this.productRepository = productRepository;
         // this.emailService = emailService;
         this.productService = productService;
-        this.dailyOrderLimitRepository = dailyOrderLimitRepository;
+        this.dailyOrderLimitService = dailyOrderLimitService;
         this.objectMapper = objectMapper;
     }
 
@@ -89,34 +89,30 @@ public class OrderService {
      * @throws IllegalArgumentException if validation fails (e.g., user not found, insufficient stock, limit reached).
      */
     public Order createOrder(Order order) {
-        // 1. Check Daily Order Limit (by total kotas/items, not orders)
-        List<DailyOrderLimit> limits = dailyOrderLimitRepository.findAll();
-        if (!limits.isEmpty()) {
-            DailyOrderLimit currentLimit = limits.get(0);
+        // 1. Check Daily Order Limit and decrement it
+        Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
+        
+        // Calculate kotas/items in this new order
+        int kotasInThisOrder = order.getOrderItems().stream()
+            .mapToInt(OrderItem::getQuantity)
+            .sum();
 
-            // Get today's date range
-            LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
-            LocalDateTime endOfDay = startOfDay.plusDays(1);
-
-            // Sum all kotas/items ordered today (excluding legacy orders without timestamps)
-            List<Order> todaysOrders = orderRepository.findAllByOrderDateBetweenExcludingNull(startOfDay, endOfDay);
-            int kotasOrderedToday = todaysOrders.stream()
-                .flatMap(orderObj -> orderObj.getOrderItems().stream())
-                .mapToInt(OrderItem::getQuantity)
-                .sum();
-
-            // Sum kotas/items in this new order
-            int kotasInThisOrder = order.getOrderItems().stream()
-                .mapToInt(OrderItem::getQuantity)
-                .sum();
-
-            int remaining = currentLimit.getLimitValue() - kotasOrderedToday;
-            if (currentLimit.getLimitValue() > 0 && (kotasOrderedToday + kotasInThisOrder) > currentLimit.getLimitValue()) {
-                if (remaining < 1) {
+        if (limitOptional.isPresent()) {
+            DailyOrderLimit currentLimit = limitOptional.get();
+            int currentLimitValue = currentLimit.getLimitValue();
+            
+            // Check if there's enough capacity
+            if (currentLimitValue > 0 && kotasInThisOrder > currentLimitValue) {
+                if (currentLimitValue < 1) {
                     throw new IllegalArgumentException("Order limit reached. No kotas left for today.");
                 } else {
-                    throw new IllegalArgumentException("Order limit reached. Only " + remaining + " kota(s) left for today.");
+                    throw new IllegalArgumentException("Order limit reached. Only " + currentLimitValue + " kota(s) left for today.");
                 }
+            }
+            
+            // Decrement the limit by the number of kotas ordered
+            if (currentLimitValue > 0) {
+                dailyOrderLimitService.decrementOrderLimit(kotasInThisOrder);
             }
         }
 
@@ -387,14 +383,31 @@ public class OrderService {
 
     /**
      * Deletes an order by its ID.
-     * Also restores the stock of products associated with the deleted order.
+     * Also restores the stock of products associated with the deleted order
+     * and increments the order limit back.
      * @param id The ID of the order to delete.
      * @return true if the order was found and deleted, false otherwise.
      */
     public boolean deleteOrder(Long id) {
         Optional<Order> orderOptional = orderRepository.findById(id);
         if (orderOptional.isPresent()) {
+            Order order = orderOptional.get();
+            
+            // Calculate kotas to restore to the limit
+            int kotasToRestore = order.getOrderItems().stream()
+                .mapToInt(OrderItem::getQuantity)
+                .sum();
+            
+            // Delete the order
             orderRepository.deleteById(id);
+            
+            // Increment the limit back
+            try {
+                dailyOrderLimitService.incrementOrderLimit(kotasToRestore);
+            } catch (Exception e) {
+                System.err.println("Failed to restore order limit after deletion: " + e.getMessage());
+            }
+            
             return true;
         }
         return false;
