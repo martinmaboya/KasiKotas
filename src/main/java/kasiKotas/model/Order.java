@@ -41,7 +41,7 @@ public class Order {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "orders"}) // Ignore 'orders' in User to break loop
     private User user;
 
-    @Column(nullable = false)
+    @Column(name = "order_date", nullable = false)
     private LocalDateTime orderDate;
 
     @Enumerated(EnumType.STRING) // Stores the enum name (e.g., "PENDING") as a string in the DB
