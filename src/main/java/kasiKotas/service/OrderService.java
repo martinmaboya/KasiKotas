@@ -409,7 +409,8 @@ public class OrderService {
     /**
      * Counts the total number of kotas ordered today.
      * This is used for display purposes to show admins how many kotas have been ordered.
-     * @return The total number of kotas (order items) ordered today.
+     * If no orders from today are found (all have null timestamps), it falls back to counting all orders.
+     * @return The total number of kotas (order items) ordered today, or all kotas if timestamps are missing.
      */
     public int getTodaysKotasOrdered() {
         LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
@@ -417,9 +418,28 @@ public class OrderService {
         
         List<Order> todaysOrders = orderRepository.findAllByOrderDateBetweenExcludingNull(startOfDay, endOfDay);
         
-        return todaysOrders.stream()
+        int todaysKotas = todaysOrders.stream()
             .flatMap(order -> order.getOrderItems().stream())
             .mapToInt(OrderItem::getQuantity)
             .sum();
+        
+        // If no orders found for today, check if we have legacy orders without timestamps
+        if (todaysKotas == 0) {
+            List<Order> allOrders = orderRepository.findAll();
+            int ordersWithNullDates = (int) allOrders.stream()
+                .filter(order -> order.getOrderDate() == null)
+                .count();
+            
+            // If we have orders with null dates, count them as well
+            if (ordersWithNullDates > 0) {
+                System.out.println("Found " + ordersWithNullDates + " orders with null timestamps, including them in count");
+                return allOrders.stream()
+                    .flatMap(order -> order.getOrderItems().stream())
+                    .mapToInt(OrderItem::getQuantity)
+                    .sum();
+            }
+        }
+        
+        return todaysKotas;
     }
 }
