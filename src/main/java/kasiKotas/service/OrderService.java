@@ -125,8 +125,11 @@ public class OrderService {
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + order.getUser().getId()));
         order.setUser(customer);
 
-        order.setOrderDate(LocalDateTime.now());
+        // Set orderDate and status early
+        LocalDateTime orderDateTime = LocalDateTime.now();
+        order.setOrderDate(orderDateTime);
         order.setStatus(Order.OrderStatus.PENDING);
+        System.out.println("Initial orderDate set to: " + orderDateTime);
 
         // 3. Process Order Items and validate stock
         if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
@@ -184,8 +187,15 @@ public class OrderService {
         System.out.println("Delivery Fee: " + order.getDeliveryFee());
         System.out.println("Discount Amount: " + order.getDiscountAmount());
         System.out.println("Final Total Amount: " + order.getTotalAmount());
+        
+        // CRITICAL: Ensure orderDate is set immediately before saving
+        LocalDateTime now = LocalDateTime.now();
+        order.setOrderDate(now);
+        System.out.println("Setting orderDate to: " + now);
 
         Order savedOrder = orderRepository.save(order);
+        System.out.println("Saved order ID: " + savedOrder.getId() + ", orderDate after save: " + savedOrder.getOrderDate());
+        
         order.getOrderItems().forEach(item -> item.setOrder(savedOrder));
         orderItemRepository.saveAll(order.getOrderItems());
 
