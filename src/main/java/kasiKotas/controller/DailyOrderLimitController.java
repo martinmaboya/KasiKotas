@@ -39,9 +39,8 @@ public class DailyOrderLimitController {
 
     /**
      * Sets or updates the total order limit.
-     * This automatically accounts for kotas already ordered today.
-     * For example, if you set limit to 20 and 26 kotas were already ordered,
-     * the remaining capacity will be 0.
+     * This sets the REMAINING capacity directly.
+     * For example, if you set limit to 20, the system will allow 20 more kotas to be ordered.
      * Only accessible by ADMIN users.
      */
     @PreAuthorize("hasRole('ADMIN')")
@@ -52,8 +51,8 @@ public class DailyOrderLimitController {
             return ResponseEntity.badRequest().build();
         }
         try {
-            // Use the smart method that accounts for today's orders
-            DailyOrderLimit savedLimit = dailyOrderLimitService.setOrderLimitAccountingForToday(limitValue);
+            // Set the limit directly (remaining capacity)
+            DailyOrderLimit savedLimit = dailyOrderLimitService.setOrderLimit(limitValue);
             return ResponseEntity.ok(savedLimit);
         } catch (IllegalArgumentException e) {
             System.err.println("Error setting order limit: " + e.getMessage());
