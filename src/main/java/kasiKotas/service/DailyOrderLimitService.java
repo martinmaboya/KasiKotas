@@ -42,8 +42,10 @@ public class DailyOrderLimitService {
         List<DailyOrderLimit> limits = dailyOrderLimitRepository.findAll();
         return limits.isEmpty() ? Optional.empty() : Optional.of(limits.get(0));
     }
-IMPORTANT: This sets the TOTAL limit. To account for orders already placed today,
-     * use setOrderLimitAccountingForToday() instead.
+
+    /**
+     * Sets or updates the total order limit.
+     * This sets the TOTAL capacity allowed for the day.
      * @param newLimitValue The new integer value for the total order limit.
      * @return The saved/updated DailyOrderLimit object.
      * @throws IllegalArgumentException if the new limit value is negative.
@@ -86,11 +88,7 @@ IMPORTANT: This sets the TOTAL limit. To account for orders already placed today
             remainingCapacity = 0;
         }
 
-        return setOrderLimit(remainingCapacity
-            orderLimit = new DailyOrderLimit();
-            orderLimit.setLimitValue(newLimitValue);
-        }
-        return dailyOrderLimitRepository.save(orderLimit);
+        return setOrderLimit(remainingCapacity);
     }
 
     /**
