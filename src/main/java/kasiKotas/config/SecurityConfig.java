@@ -76,7 +76,7 @@ public class SecurityConfig {
                 "/api/auth/facebook",
                 "/api/auth/oauth/status"
             ).permitAll()
-                        .anyRequest().authenticated()
+             .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

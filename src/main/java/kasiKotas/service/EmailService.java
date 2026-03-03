@@ -22,6 +22,10 @@ public class EmailService {
      */
     public void sendOtpEmail(String toEmail, String firstName, String otp) {
         try {
+            System.out.println("[EmailService] Attempting to send OTP email to: " + toEmail);
+            System.out.println("[EmailService] From address: " + fromEmail);
+            System.out.println("[EmailService] OTP: " + otp);
+            
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
@@ -32,11 +36,17 @@ public class EmailService {
             String htmlContent = buildOtpEmailHtml(firstName, otp);
             helper.setText(htmlContent, true);
             
+            System.out.println("[EmailService] Sending email via SMTP...");
             mailSender.send(message);
-            System.out.println("OTP email sent successfully to: " + toEmail);
+            System.out.println("[EmailService] ✅ OTP email sent successfully to: " + toEmail);
         } catch (MessagingException e) {
-            System.err.println("Failed to send OTP email: " + e.getMessage());
-            throw new RuntimeException("Failed to send OTP email", e);
+            System.err.println("[EmailService] ❌ MessagingException: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to send OTP email: " + e.getMessage(), e);
+        } catch (Exception e) {
+            System.err.println("[EmailService] ❌ Unexpected error: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to send OTP email: " + e.getMessage(), e);
         }
     }
 
@@ -65,7 +75,7 @@ public class EmailService {
                 "</div>" +
                 "<div class='content'>" +
                 "<h2>Hello " + firstName + ",</h2>" +
-                "<p>We received a request to reset your password. Use the OTP below to complete the password reset process:</p>" +
+                "<p>We're sorry to hear you forgot your password. Use the OTP below to complete the password reset process:</p>" +
                 "<div class='otp-box'>" +
                 "<div class='otp-code'>" + otp + "</div>" +
                 "</div>" +
