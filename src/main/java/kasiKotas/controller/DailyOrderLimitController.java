@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
@@ -104,5 +105,25 @@ public class DailyOrderLimitController {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    /**
+     * Debug endpoint: shows the server's current time and today's date window used for counting.
+     * Use this to diagnose timezone mismatches between the server and your local clock.
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/debug")
+    public ResponseEntity<Map<String, Object>> getDebugInfo() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        int kotasInWindow = orderService.getTodaysKotasOrdered();
+        return ResponseEntity.ok(Map.of(
+            "serverNow", now.toString(),
+            "queryWindowStart", startOfDay.toString(),
+            "queryWindowEnd", endOfDay.toString(),
+            "kotasFoundInWindow", kotasInWindow,
+            "recentOrderDates", orderService.getRecentOrderDates()
+        ));
     }
 }

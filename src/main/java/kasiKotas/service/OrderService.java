@@ -24,6 +24,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.mail.MessagingException;
+import org.springframework.data.domain.PageRequest;
 
 /**
  * Service layer for managing Order related business logic.
@@ -100,16 +101,17 @@ public class OrderService {
         if (limitOptional.isPresent()) {
             DailyOrderLimit currentLimit = limitOptional.get();
             int totalLimitForDay = currentLimit.getLimitValue();
-            
+
             // Get today's kotas already ordered
             int kotasOrderedToday = getTodaysKotasOrdered();
-            
+
             // Calculate remaining capacity
             int remainingCapacity = totalLimitForDay - kotasOrderedToday;
-            
-            // Check if there's enough capacity
-            if (totalLimitForDay > 0 && kotasInThisOrder > remainingCapacity) {
-                if (remainingCapacity < 1) {
+
+            // Check if there's enough capacity.
+            // NOTE: limit == 0 means no kotas are allowed; we must NOT skip this check.
+            if (kotasInThisOrder > remainingCapacity) {
+                if (remainingCapacity <= 0) {
                     throw new IllegalArgumentException("Order limit reached. No kotas left for today.");
                 } else {
                     throw new IllegalArgumentException("Order limit reached. Only " + remainingCapacity + " kota(s) left for today.");
@@ -425,31 +427,24 @@ public class OrderService {
     public int getTodaysKotasOrdered() {
         LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
-        
-        List<Order> todaysOrders = orderRepository.findAllByOrderDateBetweenExcludingNull(startOfDay, endOfDay);
-        
-        int todaysKotas = todaysOrders.stream()
-            .flatMap(order -> order.getOrderItems().stream())
-            .mapToInt(OrderItem::getQuantity)
-            .sum();
-        
-        // If no orders found for today, check if we have legacy orders without timestamps
-        if (todaysKotas == 0) {
-            List<Order> allOrders = orderRepository.findAll();
-            int ordersWithNullDates = (int) allOrders.stream()
-                .filter(order -> order.getOrderDate() == null)
-                .count();
-            
-            // If we have orders with null dates, count them as well
-            if (ordersWithNullDates > 0) {
-                System.out.println("Found " + ordersWithNullDates + " orders with null timestamps, including them in count");
-                return allOrders.stream()
-                    .flatMap(order -> order.getOrderItems().stream())
-                    .mapToInt(OrderItem::getQuantity)
-                    .sum();
-            }
-        }
-        
+
+        System.out.println("[DailyLimit] Querying kotas between " + startOfDay + " and " + endOfDay);
+
+        // Use a direct SUM query — avoids any lazy-loading issues entirely
+        int todaysKotas = orderRepository.sumKotasOrderedBetween(startOfDay, endOfDay);
+
+        System.out.println("[DailyLimit] Kotas ordered today (" + startOfDay.toLocalDate() + "): " + todaysKotas);
         return todaysKotas;
+    }
+
+    /**
+     * Returns the 10 most recent order dates stored in the database.
+     * Used by the debug endpoint to diagnose timezone / date-storage issues.
+     */
+    public List<String> getRecentOrderDates() {
+        List<LocalDateTime> dates = orderRepository.findRecentOrderDates(PageRequest.of(0, 10));
+        return dates.stream()
+            .map(d -> d == null ? "NULL" : d.toString())
+            .collect(java.util.stream.Collectors.toList());
     }
 }

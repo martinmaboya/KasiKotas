@@ -3,6 +3,7 @@ package kasiKotas.repository;
 
 import kasiKotas.model.Order; // Import the Order entity
 import kasiKotas.model.User;  // Import the User entity (for finding orders by user)
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -56,4 +57,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Query to find orders with non-null orderDate within a date range (excludes legacy orders without timestamps)
     @Query("SELECT o FROM Order o WHERE o.orderDate IS NOT NULL AND o.orderDate >= :start AND o.orderDate < :end")
     List<Order> findAllByOrderDateBetweenExcludingNull(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    // JOIN FETCH version: eagerly loads orderItems in the same query to avoid lazy-loading issues
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.orderItems oi WHERE o.orderDate IS NOT NULL AND o.orderDate >= :start AND o.orderDate < :end")
+    List<Order> findAllByOrderDateBetweenWithItems(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    // Count all order items quantity for a date range (most direct approach)
+    @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi JOIN oi.order o WHERE o.orderDate IS NOT NULL AND o.orderDate >= :start AND o.orderDate < :end")
+    int sumKotasOrderedBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    // Fetch the most recent order dates for debugging (latest 10)
+    @Query("SELECT o.orderDate FROM Order o ORDER BY o.orderDate DESC NULLS LAST")
+    List<LocalDateTime> findRecentOrderDates(Pageable pageable);
 }
