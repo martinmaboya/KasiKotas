@@ -5,6 +5,7 @@ import kasiKotas.security.JwtAuthFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -35,8 +36,9 @@ public class SecurityConfig {
         ));
         // OR: configuration.setAllowedOriginPatterns(List.of("*")); if you want wildcard matching
 
-        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type"));
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(java.util.List.of("*"));
+        configuration.setExposedHeaders(java.util.List.of("Authorization"));
         configuration.setAllowCredentials(true); // ✅ safe now since we’re not using "*"
 
         org.springframework.web.cors.UrlBasedCorsConfigurationSource source =
@@ -51,6 +53,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(authz -> authz
+            // Allow all CORS preflight requests through before the JWT filter sees them
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .requestMatchers(
                 "/",
                 "/home",
