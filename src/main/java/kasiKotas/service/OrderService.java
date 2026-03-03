@@ -90,32 +90,23 @@ public class OrderService {
      * @throws IllegalArgumentException if validation fails (e.g., user not found, insufficient stock, limit reached).
      */
     public Order createOrder(Order order) {
-        // 1. Check Daily Order Limit - compare against TOTAL allowed for the day
+        // 1. Check Daily Order Limit
+        // limitValue IS the remaining capacity (a countdown set by admin, decremented per order).
         Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
-        
+
         // Calculate kotas/items in this new order
         int kotasInThisOrder = order.getOrderItems().stream()
             .mapToInt(OrderItem::getQuantity)
             .sum();
 
         if (limitOptional.isPresent()) {
-            DailyOrderLimit currentLimit = limitOptional.get();
-            int totalLimitForDay = currentLimit.getLimitValue();
+            int remainingCapacity = limitOptional.get().getLimitValue();
 
-            // Get today's kotas already ordered
-            int kotasOrderedToday = getTodaysKotasOrdered();
-
-            // Calculate remaining capacity
-            int remainingCapacity = totalLimitForDay - kotasOrderedToday;
-
-            // Check if there's enough capacity.
-            // NOTE: limit == 0 means no kotas are allowed; we must NOT skip this check.
+            if (remainingCapacity <= 0) {
+                throw new IllegalArgumentException("Order limit reached. No kotas left for today.");
+            }
             if (kotasInThisOrder > remainingCapacity) {
-                if (remainingCapacity <= 0) {
-                    throw new IllegalArgumentException("Order limit reached. No kotas left for today.");
-                } else {
-                    throw new IllegalArgumentException("Order limit reached. Only " + remainingCapacity + " kota(s) left for today.");
-                }
+                throw new IllegalArgumentException("Order limit reached. Only " + remainingCapacity + " kota(s) left for today.");
             }
         }
 
@@ -197,9 +188,18 @@ public class OrderService {
 
         Order savedOrder = orderRepository.save(order);
         System.out.println("Saved order ID: " + savedOrder.getId() + ", orderDate after save: " + savedOrder.getOrderDate());
-        
+
         order.getOrderItems().forEach(item -> item.setOrder(savedOrder));
         orderItemRepository.saveAll(order.getOrderItems());
+
+        // Decrement the remaining capacity by the number of kotas in this order
+        try {
+            dailyOrderLimitService.decrementOrderLimit(kotasInThisOrder);
+            System.out.println("[DailyLimit] Decremented limit by " + kotasInThisOrder);
+        } catch (Exception e) {
+            // Log but don't fail the order — the order is already saved
+            System.err.println("[DailyLimit] Warning: could not decrement limit: " + e.getMessage());
+        }
 
         return savedOrder;
     }

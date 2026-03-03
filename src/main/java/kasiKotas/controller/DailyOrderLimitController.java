@@ -41,18 +41,13 @@ public class DailyOrderLimitController {
         }
         
         DailyOrderLimit limit = limitOptional.get();
-        int totalLimit = limit.getLimitValue();
+        // limitValue IS the remaining capacity (it gets decremented as orders come in)
+        int remainingCapacity = limit.getLimitValue();
         int kotasOrderedToday = orderService.getTodaysKotasOrdered();
-        int remainingCapacity = totalLimit - kotasOrderedToday;
-        
-        // Ensure remaining is not negative for display
-        if (remainingCapacity < 0) {
-            remainingCapacity = 0;
-        }
-        
+
         Map<String, Object> response = Map.of(
             "id", limit.getId(),
-            "limitValue", totalLimit,
+            "limitValue", remainingCapacity,
             "kotasOrderedToday", kotasOrderedToday,
             "remainingCapacity", remainingCapacity
         );
