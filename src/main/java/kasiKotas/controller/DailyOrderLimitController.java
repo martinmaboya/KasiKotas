@@ -41,14 +41,15 @@ public class DailyOrderLimitController {
         }
         
         DailyOrderLimit limit = limitOptional.get();
-        // limitValue IS the remaining capacity (it gets decremented as orders come in)
-        int remainingCapacity = limit.getLimitValue();
-        int kotasOrderedToday = orderService.getTodaysKotasOrdered();
+        int limitValue = limit.getLimitValue();
+        // remaining = total cap - all kotas ever ordered (dynamic, no manual decrement needed)
+        int kotasOrderedTotal = orderService.getTodaysKotasOrdered();
+        int remainingCapacity = Math.max(0, limitValue - kotasOrderedTotal);
 
         Map<String, Object> response = Map.of(
             "id", limit.getId(),
-            "limitValue", remainingCapacity,
-            "kotasOrderedToday", kotasOrderedToday,
+            "limitValue", limitValue,
+            "kotasOrderedToday", kotasOrderedTotal,
             "remainingCapacity", remainingCapacity
         );
         

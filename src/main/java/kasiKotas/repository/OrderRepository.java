@@ -66,6 +66,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi JOIN oi.order o WHERE o.orderDate IS NOT NULL AND o.orderDate >= :start AND o.orderDate < :end")
     int sumKotasOrderedBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
+    // Count ALL order item quantities across all time (used for daily limit tracking)
+    @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi")
+    int sumAllKotasOrdered();
+
     // Fetch the most recent order dates for debugging (latest 10)
     @Query("SELECT o.orderDate FROM Order o ORDER BY o.orderDate DESC NULLS LAST")
     List<LocalDateTime> findRecentOrderDates(Pageable pageable);

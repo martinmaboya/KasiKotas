@@ -150,8 +150,9 @@ public class OrderController {
             Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
 
             if (limitOptional.isPresent()) {
-                // limitValue IS the remaining capacity — no subtraction needed
-                int remainingCapacity = limitOptional.get().getLimitValue();
+                int limitValue = limitOptional.get().getLimitValue();
+                int totalOrdered = orderService.getTodaysKotasOrdered();
+                int remainingCapacity = limitValue - totalOrdered;
 
                 if (remainingCapacity <= 0) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)

@@ -91,16 +91,20 @@ public class OrderService {
      */
     public Order createOrder(Order order) {
         // 1. Check Daily Order Limit
-        // limitValue IS the remaining capacity (a countdown set by admin, decremented per order).
+        // remaining = limitValue (admin's total cap) - total kotas already in DB
         Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
 
-        // Calculate kotas/items in this new order
+        // Calculate kotas in this new order
         int kotasInThisOrder = order.getOrderItems().stream()
             .mapToInt(OrderItem::getQuantity)
             .sum();
 
         if (limitOptional.isPresent()) {
-            int remainingCapacity = limitOptional.get().getLimitValue();
+            int limitValue = limitOptional.get().getLimitValue();
+            int totalOrdered = getTodaysKotasOrdered();
+            int remainingCapacity = limitValue - totalOrdered;
+
+            System.out.println("[DailyLimit] limitValue=" + limitValue + ", totalOrdered=" + totalOrdered + ", remaining=" + remainingCapacity + ", thisOrder=" + kotasInThisOrder);
 
             if (remainingCapacity <= 0) {
                 throw new IllegalArgumentException("Order limit reached. No kotas left for today.");
@@ -192,14 +196,8 @@ public class OrderService {
         order.getOrderItems().forEach(item -> item.setOrder(savedOrder));
         orderItemRepository.saveAll(order.getOrderItems());
 
-        // Decrement the remaining capacity by the number of kotas in this order
-        try {
-            dailyOrderLimitService.decrementOrderLimit(kotasInThisOrder);
-            System.out.println("[DailyLimit] Decremented limit by " + kotasInThisOrder);
-        } catch (Exception e) {
-            // Log but don't fail the order — the order is already saved
-            System.err.println("[DailyLimit] Warning: could not decrement limit: " + e.getMessage());
-        }
+        // Remaining capacity is computed dynamically (limitValue - totalOrdered),
+        // so no manual decrement needed here.
 
         return savedOrder;
     }
@@ -425,16 +423,11 @@ public class OrderService {
      * @return The total number of kotas (order items) ordered today, or all kotas if timestamps are missing.
      */
     public int getTodaysKotasOrdered() {
-        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
-        LocalDateTime endOfDay = startOfDay.plusDays(1);
-
-        System.out.println("[DailyLimit] Querying kotas between " + startOfDay + " and " + endOfDay);
-
-        // Use a direct SUM query — avoids any lazy-loading issues entirely
-        int todaysKotas = orderRepository.sumKotasOrderedBetween(startOfDay, endOfDay);
-
-        System.out.println("[DailyLimit] Kotas ordered today (" + startOfDay.toLocalDate() + "): " + todaysKotas);
-        return todaysKotas;
+        // Returns the total number of kotas ordered across ALL orders in the database.
+        // The admin sets a total capacity (e.g. 20); remaining = limitValue - this number.
+        int total = orderRepository.sumAllKotasOrdered();
+        System.out.println("[DailyLimit] Total kotas ordered (all time): " + total);
+        return total;
     }
 
     /**
