@@ -3,7 +3,6 @@ package kasiKotas.repository;
 
 import kasiKotas.model.Order; // Import the Order entity
 import kasiKotas.model.User;  // Import the User entity (for finding orders by user)
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -70,12 +69,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Excludes CANCELLED orders so they don't block new orders
     @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi JOIN oi.order o WHERE o.status != kasiKotas.model.Order.OrderStatus.CANCELLED")
     int sumAllKotasOrdered();
-
-    // Total number of order records (for debug)
-    @Query("SELECT COUNT(o) FROM Order o WHERE o.status != kasiKotas.model.Order.OrderStatus.CANCELLED")
-    long countNonCancelledOrders();
-
-    // Fetch the most recent order dates for debugging (latest 10)
-    @Query("SELECT o.orderDate FROM Order o ORDER BY o.orderDate DESC NULLS LAST")
-    List<LocalDateTime> findRecentOrderDates(Pageable pageable);
+}
 }

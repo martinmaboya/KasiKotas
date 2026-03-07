@@ -24,7 +24,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.mail.MessagingException;
-import org.springframework.data.domain.PageRequest;
 
 /**
  * Service layer for managing Order related business logic.
@@ -425,25 +424,8 @@ public class OrderService {
      * @return The total number of kotas (order items) ordered today, or all kotas if timestamps are missing.
      */
     public int getTodaysKotasOrdered() {
-        // Returns the SUM of all order item quantities for non-cancelled orders.
-        // The admin sets a total capacity (e.g. 20); remaining = limitValue - this number.
         int total = orderRepository.sumAllKotasOrdered();
         System.out.println("[DailyLimit] Total kotas ordered (non-cancelled): " + total);
         return total;
-    }
-
-    public long getNonCancelledOrderCount() {
-        return orderRepository.countNonCancelledOrders();
-    }
-
-    /**
-     * Returns the 10 most recent order dates stored in the database.
-     * Used by the debug endpoint to diagnose timezone / date-storage issues.
-     */
-    public List<String> getRecentOrderDates() {
-        List<LocalDateTime> dates = orderRepository.findRecentOrderDates(PageRequest.of(0, 10));
-        return dates.stream()
-            .map(d -> d == null ? "NULL" : d.toString())
-            .collect(java.util.stream.Collectors.toList());
     }
 }
