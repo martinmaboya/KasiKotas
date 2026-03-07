@@ -111,14 +111,17 @@ public class DailyOrderLimitController {
     @GetMapping("/debug")
     public ResponseEntity<Map<String, Object>> getDebugInfo() {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
-        LocalDateTime endOfDay = startOfDay.plusDays(1);
-        int kotasInWindow = orderService.getTodaysKotasOrdered();
+        int totalKotasOrdered = orderService.getTodaysKotasOrdered();
+        long nonCancelledOrderCount = orderService.getNonCancelledOrderCount();
+        Optional<DailyOrderLimit> limit = dailyOrderLimitService.getOrderLimit();
+        int limitValue = limit.map(l -> l.getLimitValue()).orElse(0);
+        int remaining = Math.max(0, limitValue - totalKotasOrdered);
         return ResponseEntity.ok(Map.of(
             "serverNow", now.toString(),
-            "queryWindowStart", startOfDay.toString(),
-            "queryWindowEnd", endOfDay.toString(),
-            "kotasFoundInWindow", kotasInWindow,
+            "limitValue", limitValue,
+            "totalKotasOrdered_sumOfQuantities", totalKotasOrdered,
+            "nonCancelledOrderRecords", nonCancelledOrderCount,
+            "remainingCapacity", remaining,
             "recentOrderDates", orderService.getRecentOrderDates()
         ));
     }

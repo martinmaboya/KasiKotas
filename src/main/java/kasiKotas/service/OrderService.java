@@ -107,10 +107,12 @@ public class OrderService {
             System.out.println("[DailyLimit] limitValue=" + limitValue + ", totalOrdered=" + totalOrdered + ", remaining=" + remainingCapacity + ", thisOrder=" + kotasInThisOrder);
 
             if (remainingCapacity <= 0) {
-                throw new IllegalArgumentException("Order limit reached. No kotas left for today.");
+                throw new IllegalArgumentException(
+                    "Order limit reached. No kotas left. (Limit: " + limitValue + ", Already ordered: " + totalOrdered + ", Remaining: 0)");
             }
             if (kotasInThisOrder > remainingCapacity) {
-                throw new IllegalArgumentException("Order limit reached. Only " + remainingCapacity + " kota(s) left for today.");
+                throw new IllegalArgumentException(
+                    "Order limit reached. Only " + remainingCapacity + " kota(s) left for today. (Limit: " + limitValue + ", Already ordered: " + totalOrdered + ", This order: " + kotasInThisOrder + ")");
             }
         }
 
@@ -423,11 +425,15 @@ public class OrderService {
      * @return The total number of kotas (order items) ordered today, or all kotas if timestamps are missing.
      */
     public int getTodaysKotasOrdered() {
-        // Returns the total number of kotas ordered across ALL orders in the database.
+        // Returns the SUM of all order item quantities for non-cancelled orders.
         // The admin sets a total capacity (e.g. 20); remaining = limitValue - this number.
         int total = orderRepository.sumAllKotasOrdered();
-        System.out.println("[DailyLimit] Total kotas ordered (all time): " + total);
+        System.out.println("[DailyLimit] Total kotas ordered (non-cancelled): " + total);
         return total;
+    }
+
+    public long getNonCancelledOrderCount() {
+        return orderRepository.countNonCancelledOrders();
     }
 
     /**

@@ -154,9 +154,11 @@ public class OrderController {
                 int totalOrdered = orderService.getTodaysKotasOrdered();
                 int remainingCapacity = limitValue - totalOrdered;
 
+                System.out.println("[DailyLimit] Pre-check: limitValue=" + limitValue + ", totalOrdered=" + totalOrdered + ", remaining=" + remainingCapacity);
+
                 if (remainingCapacity <= 0) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body(Map.of("message", "Daily order limit reached. We are no longer taking orders for today."));
+                            .body(Map.of("message", "Daily order limit reached. No kotas left. (Limit: " + limitValue + ", Ordered: " + totalOrdered + ")"));
                 }
             }
 
