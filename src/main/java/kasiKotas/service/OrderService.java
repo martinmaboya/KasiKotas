@@ -424,8 +424,9 @@ public class OrderService {
      * @return The total number of kotas (order items) ordered today, or all kotas if timestamps are missing.
      */
     public int getTodaysKotasOrdered() {
-        int total = orderRepository.sumAllKotasOrdered();
-        System.out.println("[DailyLimit] Total kotas ordered (non-cancelled): " + total);
-        return total;
+        Long total = orderRepository.sumAllKotasOrdered();
+        int result = (total == null) ? 0 : total.intValue();
+        System.out.println("[DailyLimit] Total kotas ordered: " + result);
+        return result;
     }
 }

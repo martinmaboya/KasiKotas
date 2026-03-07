@@ -67,5 +67,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Count ALL order item quantities across all time (used for daily limit tracking)
     @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi")
-    int sumAllKotasOrdered();
+    Long sumAllKotasOrdered();
 }
