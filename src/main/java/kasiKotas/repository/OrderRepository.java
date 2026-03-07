@@ -66,7 +66,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     int sumKotasOrderedBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     // Count ALL order item quantities across all time (used for daily limit tracking)
-    // Excludes CANCELLED orders so they don't block new orders
-    @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi JOIN oi.order o WHERE o.status != kasiKotas.model.Order.OrderStatus.CANCELLED")
+    @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi")
     int sumAllKotasOrdered();
 }
