@@ -70,4 +70,3 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi JOIN oi.order o WHERE o.status != kasiKotas.model.Order.OrderStatus.CANCELLED")
     int sumAllKotasOrdered();
 }
-}
