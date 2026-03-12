@@ -76,6 +76,7 @@ public class SecurityConfig {
                 "/api/auth/user-firstname",
                 "/api/auth/login",
                 "/api/auth/get-reset-token",
+                "/api/auth/reset-password-by-email",
                 "/api/auth/google",
                 "/api/auth/facebook",
                 "/api/auth/oauth/status"
