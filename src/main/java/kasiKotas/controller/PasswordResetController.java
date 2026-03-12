@@ -228,4 +228,29 @@ public class PasswordResetController {
         response.put("message", "Password reset successfully");
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Reset password by email only — OTP already verified on frontend via EmailJS.
+     * No server-side OTP check is performed.
+     */
+    @PostMapping("/reset-password-by-email")
+    public ResponseEntity<Map<String, Object>> resetPasswordByEmail(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String newPassword = request.get("newPassword");
+        Map<String, Object> response = new HashMap<>();
+
+        Optional<User> user = userRepository.findByEmail(email);
+        if (user.isEmpty()) {
+            response.put("success", false);
+            response.put("message", "User not found");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        user.get().setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user.get());
+
+        response.put("success", true);
+        response.put("message", "Password reset successfully");
+        return ResponseEntity.ok(response);
+    }
 }
