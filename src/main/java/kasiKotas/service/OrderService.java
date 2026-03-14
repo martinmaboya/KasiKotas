@@ -106,12 +106,11 @@ public class OrderService {
             System.out.println("[DailyLimit] limitValue=" + limitValue + ", totalOrdered=" + totalOrdered + ", remaining=" + remainingCapacity + ", thisOrder=" + kotasInThisOrder);
 
             if (remainingCapacity <= 0) {
-                throw new IllegalArgumentException(
-                    "Order limit reached. No kotas left. (Limit: " + limitValue + ", Already ordered: " + totalOrdered + ", Remaining: 0)");
+                throw new IllegalArgumentException("We are sold out for today. Check with us again tomorrow.");
             }
             if (kotasInThisOrder > remainingCapacity) {
                 throw new IllegalArgumentException(
-                    "Order limit reached. Only " + remainingCapacity + " kota(s) left for today. (Limit: " + limitValue + ", Already ordered: " + totalOrdered + ", This order: " + kotasInThisOrder + ")");
+                    "Only " + remainingCapacity + " kota(s) left for today. Please reduce your quantity.");
             }
         }
 
