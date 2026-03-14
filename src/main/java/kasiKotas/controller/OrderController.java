@@ -158,7 +158,7 @@ public class OrderController {
 
                 if (remainingCapacity <= 0) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body(Map.of("message", "Daily order limit reached. No kotas left. (Limit: " + limitValue + ", Ordered: " + totalOrdered + ")"));
+                            .body(Map.of("message", "We are sold out for today. Check with us again tomorrow."));
                 }
             }
 
