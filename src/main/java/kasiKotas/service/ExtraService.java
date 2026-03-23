@@ -32,7 +32,9 @@ public class ExtraService {
      * @return A list of all Extra objects.
      */
     public List<Extra> getAllExtras() {
-        return extraRepository.findAll();
+        List<Extra> extras = extraRepository.findAll();
+        extras.forEach(this::applyAvailability);
+        return extras;
     }
 
     /**
@@ -41,7 +43,10 @@ public class ExtraService {
      * @return An Optional containing the Extra if found, or empty if not found.
      */
     public Optional<Extra> getExtraById(Long id) {
-        return extraRepository.findById(id);
+        return extraRepository.findById(id).map(extra -> {
+            applyAvailability(extra);
+            return extra;
+        });
     }
 
     /**
@@ -58,10 +63,18 @@ public class ExtraService {
         if (extra.getPrice() == null || extra.getPrice() < 0) {
             throw new IllegalArgumentException("Extra price cannot be negative.");
         }
+        if (extra.getStock() == null) {
+            extra.setStock(0);
+        }
+        if (extra.getStock() < 0) {
+            throw new IllegalArgumentException("Extra stock cannot be negative.");
+        }
         // You could add a check for duplicate names if needed beyond unique constraint
         // if (extraRepository.findByName(extra.getName()).isPresent()) { ... }
 
-        return extraRepository.save(extra);
+        Extra saved = extraRepository.save(extra);
+        applyAvailability(saved);
+        return saved;
     }
 
     /**
@@ -81,13 +94,25 @@ public class ExtraService {
                     if (extraDetails.getPrice() == null || extraDetails.getPrice() < 0) {
                         throw new IllegalArgumentException("Updated extra price cannot be negative.");
                     }
+                    if (extraDetails.getStock() != null && extraDetails.getStock() < 0) {
+                        throw new IllegalArgumentException("Updated extra stock cannot be negative.");
+                    }
                     // Handle unique name constraint if updating name to an existing one (excluding self)
 
                     existingExtra.setName(extraDetails.getName());
                     existingExtra.setPrice(extraDetails.getPrice());
+                    if (extraDetails.getStock() != null) {
+                        existingExtra.setStock(extraDetails.getStock());
+                    }
                     existingExtra.setDescription(extraDetails.getDescription());
-                    return extraRepository.save(existingExtra);
+                    Extra saved = extraRepository.save(existingExtra);
+                    applyAvailability(saved);
+                    return saved;
                 });
+    }
+
+    private void applyAvailability(Extra extra) {
+        extra.setAvailable(extra.getStock() != null && extra.getStock() > 0);
     }
 
     /**

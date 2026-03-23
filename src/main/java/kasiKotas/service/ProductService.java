@@ -2,6 +2,7 @@
 package kasiKotas.service;
 
 import kasiKotas.model.Product;
+import kasiKotas.repository.ProductExtraRequirementRepository;
 import kasiKotas.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ import java.util.UUID; // For generating unique filenames
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final ProductExtraRequirementRepository productExtraRequirementRepository;
 
     // Define the upload directory for product images
     // IMPORTANT: In a real application, this should be outside the compiled JAR/WAR
@@ -37,8 +39,10 @@ public class ProductService {
     private final Path imageStorageLocation = Paths.get("uploads/product-images").toAbsolutePath().normalize();
 
     @Autowired
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(ProductRepository productRepository,
+                          ProductExtraRequirementRepository productExtraRequirementRepository) {
         this.productRepository = productRepository;
+        this.productExtraRequirementRepository = productExtraRequirementRepository;
         // Create the directory if it doesn't exist when the service is initialized
         try {
             Files.createDirectories(this.imageStorageLocation);
@@ -53,7 +57,9 @@ public class ProductService {
      * @return A list of all Product objects.
      */
     public List<Product> getAllProducts() {
-        return productRepository.findAll();
+        return productRepository.findAll().stream()
+                .map(this::toResponseProduct)
+                .toList();
     }
 
     /**
@@ -62,7 +68,7 @@ public class ProductService {
      * @return An Optional containing the Product if found, or empty if not found.
      */
     public Optional<Product> getProductById(Long id) {
-        return productRepository.findById(id);
+        return productRepository.findById(id).map(this::toResponseProduct);
     }
 
     /**
@@ -233,5 +239,26 @@ public class ProductService {
                 // Log the error, but don't prevent the main operation (product deletion/update)
             }
         }
+    }
+
+    private Product toResponseProduct(Product source) {
+        boolean hasRequiredExtraShortage = productExtraRequirementRepository.hasInsufficientRequiredExtra(source.getId());
+        boolean availableByOwnStock = source.getStock() != null && source.getStock() > 0;
+        boolean available = availableByOwnStock && !hasRequiredExtraShortage;
+
+        Product response = Product.builder()
+                .id(source.getId())
+                .name(source.getName())
+                .description(source.getDescription())
+                .price(source.getPrice())
+                .imageUrl(source.getImageUrl())
+                .stock(source.getStock())
+                .image(source.getImage())
+                .imageType(source.getImageType())
+                .version(source.getVersion())
+                .build();
+        response.setAvailable(available);
+        response.setEffectiveStock(available ? source.getStock() : 0);
+        return response;
     }
 }

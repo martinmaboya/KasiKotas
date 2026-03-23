@@ -6,6 +6,8 @@ import kasiKotas.repository.OrderRepository;
 import kasiKotas.repository.OrderItemRepository;
 import kasiKotas.repository.UserRepository;
 import kasiKotas.repository.ProductRepository;
+import kasiKotas.repository.ExtraRepository;
+import kasiKotas.repository.ProductExtraRequirementRepository;
 // import kasiKotas.service.EmailService;
 import kasiKotas.service.ProductService;
 import kasiKotas.service.DailyOrderLimitService;
@@ -19,6 +21,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +49,8 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final ExtraRepository extraRepository;
+    private final ProductExtraRequirementRepository productExtraRequirementRepository;
     // private final EmailService emailService;
     private final ProductService productService;
     private final DailyOrderLimitService dailyOrderLimitService;
@@ -60,6 +66,8 @@ public class OrderService {
             OrderItemRepository orderItemRepository,
             UserRepository userRepository,
             ProductRepository productRepository,
+            ExtraRepository extraRepository,
+            ProductExtraRequirementRepository productExtraRequirementRepository,
             // EmailService emailService,
             ProductService productService,
             DailyOrderLimitService dailyOrderLimitService,
@@ -68,6 +76,8 @@ public class OrderService {
         this.orderItemRepository = orderItemRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
+        this.extraRepository = extraRepository;
+        this.productExtraRequirementRepository = productExtraRequirementRepository;
         // this.emailService = emailService;
         this.productService = productService;
         this.dailyOrderLimitService = dailyOrderLimitService;
@@ -134,6 +144,7 @@ public class OrderService {
         }
 
         // Stock is decremented atomically per item to prevent concurrent overselling.
+        Map<Long, Integer> extraDemandTotals = new HashMap<>();
         for (OrderItem item : order.getOrderItems()) {
             Product product = productRepository.findById(item.getProduct().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProduct().getId()));
@@ -152,12 +163,24 @@ public class OrderService {
             item.setPriceAtTimeOfOrder(product.getPrice());
             item.setOrder(order);
 
+            // Every kota can consume required extras even when user does not explicitly select them.
+            List<ProductExtraRequirement> requiredExtras = productExtraRequirementRepository.findByProductId(product.getId());
+            for (ProductExtraRequirement requiredExtra : requiredExtras) {
+                int unitsRequired = requiredExtra.getUnitsRequired() == null ? 0 : requiredExtra.getUnitsRequired();
+                if (unitsRequired <= 0) {
+                    continue;
+                }
+                int demand = unitsRequired * item.getQuantity();
+                extraDemandTotals.merge(requiredExtra.getExtra().getId(), demand, Integer::sum);
+            }
+
             // Validate extras and sauces JSON (but don't recalculate total)
             if (StringUtils.hasText(item.getSelectedExtrasJson())) {
                 try {
-                    objectMapper.readValue(item.getSelectedExtrasJson(), new TypeReference<List<Extra>>() {});
+                    Map<Long, Integer> selectedExtraDemand = parseSelectedExtrasDemand(item.getSelectedExtrasJson(), item.getQuantity());
+                    selectedExtraDemand.forEach((extraId, demand) -> extraDemandTotals.merge(extraId, demand, Integer::sum));
                 } catch (Exception e) {
-                    System.err.println("Failed to parse selectedExtrasJson for order item " + item.getProduct().getName() + ": " + e.getMessage());
+                    throw new IllegalArgumentException("Invalid selected extras for product: " + item.getProduct().getName());
                 }
             }
 
@@ -167,6 +190,21 @@ public class OrderService {
                 } catch (Exception e) {
                     System.err.println("Failed to parse selectedSaucesJson for order item " + item.getProduct().getName() + ": " + e.getMessage());
                 }
+            }
+        }
+
+        // Decrement extras after all items are validated; transaction rollback guarantees consistency.
+        for (Map.Entry<Long, Integer> entry : extraDemandTotals.entrySet()) {
+            Long extraId = entry.getKey();
+            int demand = entry.getValue();
+            if (demand <= 0) {
+                continue;
+            }
+
+            boolean decremented = extraRepository.decrementStockIfAvailable(extraId, demand) == 1;
+            if (!decremented) {
+                String extraName = extraRepository.findById(extraId).map(Extra::getName).orElse("ID " + extraId);
+                throw new IllegalArgumentException("Insufficient stock for extra: " + extraName);
             }
         }
 
@@ -193,6 +231,59 @@ public class OrderService {
         // so no manual decrement needed here.
 
         return savedOrder;
+    }
+
+    private Map<Long, Integer> parseSelectedExtrasDemand(String selectedExtrasJson, int orderItemQuantity) {
+        if (!StringUtils.hasText(selectedExtrasJson)) {
+            return Collections.emptyMap();
+        }
+
+        List<Map<String, Object>> extras = objectMapper.convertValue(
+                readJsonAsList(selectedExtrasJson),
+                new TypeReference<List<Map<String, Object>>>() {}
+        );
+
+        Map<Long, Integer> demandByExtraId = new HashMap<>();
+        for (Map<String, Object> extra : extras) {
+            Long extraId = resolveExtraId(extra);
+
+            int unitsPerKota = 1;
+            Object quantityValue = extra.get("quantity");
+            if (quantityValue instanceof Number quantityNumber) {
+                unitsPerKota = quantityNumber.intValue();
+            }
+            if (unitsPerKota <= 0) {
+                throw new IllegalArgumentException("Selected extra quantity must be greater than zero.");
+            }
+
+            int totalDemand = unitsPerKota * orderItemQuantity;
+            demandByExtraId.merge(extraId, totalDemand, Integer::sum);
+        }
+        return demandByExtraId;
+    }
+
+    private Long resolveExtraId(Map<String, Object> extra) {
+        Object idValue = extra.get("id");
+        if (idValue instanceof Number numberId) {
+            return numberId.longValue();
+        }
+
+        Object nameValue = extra.get("name");
+        if (nameValue instanceof String extraName && StringUtils.hasText(extraName)) {
+            return extraRepository.findByNameIgnoreCase(extraName.trim())
+                    .map(Extra::getId)
+                    .orElseThrow(() -> new IllegalArgumentException("Selected extra not found: " + extraName));
+        }
+
+        throw new IllegalArgumentException("Each selected extra must include id or name.");
+    }
+
+    private Object readJsonAsList(String json) {
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<Object>>() {});
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid extras JSON payload.");
+        }
     }
     /**
      * Helper method to send order confirmation emails.

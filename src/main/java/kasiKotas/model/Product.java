@@ -49,6 +49,12 @@ public class Product {
     @Column(nullable = false)
     private Integer stock; // The quantity of this Kota currently available in stock. This field is mandatory.
 
+    @Transient
+    private Integer effectiveStock; // Computed stock used for display (0 when blocked by required extras)
+
+    @Transient
+    private Boolean available; // Computed availability (product stock + required extras)
+
     @Lob
     @Basic(fetch = FetchType.LAZY)
     private byte[] image; // NEW: Image data for the product, stored as a blob in the database.

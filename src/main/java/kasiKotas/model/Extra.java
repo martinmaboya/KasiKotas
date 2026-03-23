@@ -30,6 +30,12 @@ public class Extra {
     @Column(nullable = false)
     private Double price; // Price of the extra (can be 0.0 if it's an exclusion or free add-on)
 
+    @Column(nullable = false)
+    private Integer stock = 0; // Inventory count for this extra
+
+    @Transient
+    private Boolean available; // Computed at read time (stock > 0)
+
     @Column(columnDefinition = "TEXT")
     private String description; // Optional description of the extra
 
