@@ -411,14 +411,15 @@ public class OrderService {
 
     /**
      * Counts the total number of kotas ordered today.
-     * This is used for display purposes to show admins how many kotas have been ordered.
-     * If no orders from today are found (all have null timestamps), it falls back to counting all orders.
-     * @return The total number of kotas (order items) ordered today, or all kotas if timestamps are missing.
+     * This is used for display purposes to show admins how many kotas have been ordered today.
+     * Calculates kotas from midnight to now on the current date.
+     * @return The total number of kotas (order items) ordered today.
      */
     public int getTodaysKotasOrdered() {
-        Long total = orderRepository.sumAllKotasOrdered();
-        int result = (total == null) ? 0 : total.intValue();
-        System.out.println("[DailyLimit] Total kotas ordered: " + result);
+        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        int result = orderRepository.sumKotasOrderedBetween(startOfDay, endOfDay);
+        System.out.println("[DailyLimit] Total kotas ordered today (" + startOfDay + " to " + endOfDay + "): " + result);
         return result;
     }
 }
