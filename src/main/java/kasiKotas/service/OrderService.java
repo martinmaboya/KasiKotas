@@ -133,25 +133,18 @@ public class OrderService {
             throw new IllegalArgumentException("Order must contain at least one item.");
         }
 
-        // STRICT PRE-CHECK: Ensure all items have enough stock before making any changes
-        for (OrderItem item : order.getOrderItems()) {
-            Product product = productRepository.findById(item.getProduct().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProduct().getId()));
-            if (item.getQuantity() == null || item.getQuantity() <= 0) {
-                throw new IllegalArgumentException("Quantity for product " + product.getName() + " must be positive.");
-            }
-            if (product.getStock() < item.getQuantity()) {
-                throw new IllegalArgumentException("Insufficient stock for product: " + product.getName() + ". Only " + product.getStock() + " left, but " + item.getQuantity() + " requested.");
-            }
-        }
-        // Now, all items have enough stock. Proceed to decrease stock and save order.
+        // Stock is decremented atomically per item to prevent concurrent overselling.
         for (OrderItem item : order.getOrderItems()) {
             Product product = productRepository.findById(item.getProduct().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProduct().getId()));
 
-            // Check stock and decrease
-            Optional<Product> updatedProductOptional = productService.decreaseStock(product.getId(), item.getQuantity());
-            if (updatedProductOptional.isEmpty()) {
+            if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                throw new IllegalArgumentException("Quantity for product " + product.getName() + " must be positive.");
+            }
+
+            // Atomic check-and-decrement at DB level: succeeds only if stock >= requested quantity now.
+            boolean stockDecreased = productService.decreaseStock(product.getId(), item.getQuantity());
+            if (!stockDecreased) {
                 throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
             }
 

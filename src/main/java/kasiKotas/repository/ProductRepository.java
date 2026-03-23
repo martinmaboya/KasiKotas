@@ -2,7 +2,10 @@
 package kasiKotas.repository; // This specifies the package for this interface
 
 import kasiKotas.model.Product; // Import the Product entity
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository; // Core Spring Data JPA interface
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository; // Annotation to mark this as a Spring component
 
 import java.util.List; // For potential custom query methods
@@ -42,4 +45,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // Find products where stock is less than a certain value
     // List<Product> findByStockLessThan(Integer stock);
+
+    /**
+     * Atomically decrements stock only when enough inventory is available.
+     * Returns 1 when the row is updated, 0 when stock is insufficient or product is missing.
+     */
+    @Modifying
+    @Query("UPDATE Product p SET p.stock = p.stock - :quantity WHERE p.id = :productId AND p.stock >= :quantity")
+    int decrementStockIfAvailable(@Param("productId") Long productId, @Param("quantity") int quantity);
 }

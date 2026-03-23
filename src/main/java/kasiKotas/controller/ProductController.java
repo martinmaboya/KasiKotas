@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import kasiKotas.model.Product;
 import kasiKotas.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,52 +40,56 @@ public class ProductController implements WebMvcConfigurer {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping(consumes = {"multipart/form-data"})
-    public ResponseEntity<Product> createProduct(
-            @RequestParam("name") String name,
-            @RequestParam("description") String description,
-            @RequestParam("price") Double price,
-            @RequestParam("stock") Integer stock,
-            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile,
-            HttpServletRequest request
-    ) {
-        try {
-            Product product = new Product();
-            product.setName(name);
-            product.setDescription(description);
-            product.setPrice(price);
-            product.setStock(stock);
-            Product createdProduct = productService.createProduct(product, imageFile);
-            return new ResponseEntity<>(createdProduct, HttpStatus.CREATED);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
+     @PreAuthorize("hasRole('ADMIN')")
+     @PostMapping(consumes = {"multipart/form-data"})
+     public ResponseEntity<Product> createProduct(
+             @RequestParam("name") String name,
+             @RequestParam("description") String description,
+             @RequestParam("price") Double price,
+             @RequestParam("stock") Integer stock,
+             @RequestPart(value = "imageFile", required = false) MultipartFile imageFile,
+             HttpServletRequest request
+     ) {
+         try {
+             Product product = new Product();
+             product.setName(name);
+             product.setDescription(description);
+             product.setPrice(price);
+             product.setStock(stock);
+             Product createdProduct = productService.createProduct(product, imageFile);
+             return new ResponseEntity<>(createdProduct, HttpStatus.CREATED);
+         } catch (IllegalArgumentException e) {
+             return ResponseEntity.badRequest().build();
+         } catch (OptimisticLockingFailureException e) {
+             return ResponseEntity.status(HttpStatus.CONFLICT).build();
+         }
+     }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
-    public ResponseEntity<Product> updateProduct(
-            @PathVariable Long id,
-            @RequestParam("name") String name,
-            @RequestParam("description") String description,
-            @RequestParam("price") Double price,
-            @RequestParam("stock") Integer stock,
-            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile
-    ) {
-        try {
-            Product productDetails = new Product();
-            productDetails.setName(name);
-            productDetails.setDescription(description);
-            productDetails.setPrice(price);
-            productDetails.setStock(stock);
-            return productService.updateProduct(id, productDetails, imageFile)
-                    .map(ResponseEntity::ok)
-                    .orElseGet(() -> ResponseEntity.notFound().build());
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
+     @PreAuthorize("hasRole('ADMIN')")
+     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+     public ResponseEntity<Product> updateProduct(
+             @PathVariable Long id,
+             @RequestParam("name") String name,
+             @RequestParam("description") String description,
+             @RequestParam("price") Double price,
+             @RequestParam("stock") Integer stock,
+             @RequestPart(value = "imageFile", required = false) MultipartFile imageFile
+     ) {
+         try {
+             Product productDetails = new Product();
+             productDetails.setName(name);
+             productDetails.setDescription(description);
+             productDetails.setPrice(price);
+             productDetails.setStock(stock);
+             return productService.updateProduct(id, productDetails, imageFile)
+                     .map(ResponseEntity::ok)
+                     .orElseGet(() -> ResponseEntity.notFound().build());
+         } catch (IllegalArgumentException e) {
+             return ResponseEntity.badRequest().build();
+         } catch (OptimisticLockingFailureException e) {
+             return ResponseEntity.status(HttpStatus.CONFLICT).build();
+         }
+     }
 
     // Endpoint to get product image as a blob (public)
     @GetMapping("/{id}/image")

@@ -3,6 +3,8 @@ package kasiKotas.controller;
 import kasiKotas.model.User;
 import kasiKotas.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,6 +32,8 @@ public class UserController {
             return new ResponseEntity<>(registeredUser, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
+        } catch (DataIntegrityViolationException | OptimisticLockingFailureException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
     }
 
@@ -60,6 +64,8 @@ public class UserController {
                     .orElseGet(() -> ResponseEntity.notFound().build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
+        } catch (DataIntegrityViolationException | OptimisticLockingFailureException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
     }
 
@@ -77,6 +83,8 @@ public class UserController {
             }
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
+        } catch (OptimisticLockingFailureException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
     }
 
@@ -84,11 +92,15 @@ public class UserController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        boolean deleted = userService.deleteUser(id);
-        if (deleted) {
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
+        try {
+            boolean deleted = userService.deleteUser(id);
+            if (deleted) {
+                return ResponseEntity.noContent().build();
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (DataIntegrityViolationException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
     }
 }

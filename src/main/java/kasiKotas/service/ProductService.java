@@ -171,26 +171,17 @@ public class ProductService {
     }
 
     /**
-     * Decreases the stock of a product.
+     * Decreases stock atomically to avoid overselling during concurrent orders.
      * @param productId The ID of the product.
      * @param quantity The quantity to deduct from stock.
-     * @return An Optional containing the updated Product, or empty if product not found or insufficient stock.
+     * @return true when stock was successfully decremented, false when insufficient stock/product missing.
      */
-    public Optional<Product> decreaseStock(Long productId, int quantity) {
-        return productRepository.findById(productId)
-                .map(product -> {
-                    if (quantity < 0) {
-                        throw new IllegalArgumentException("Quantity to decrease cannot be negative.");
-                    }
-                    if (product.getStock() >= quantity) {
-                        product.setStock(product.getStock() - quantity);
-                        return productRepository.save(product);
-                    } else {
-                        // In a real application, you might throw a custom exception here
-                        System.err.println("Insufficient stock for product ID: " + productId);
-                        return null; // Indicate failure due to insufficient stock
-                    }
-                });
+    public boolean decreaseStock(Long productId, int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero.");
+        }
+        int updatedRows = productRepository.decrementStockIfAvailable(productId, quantity);
+        return updatedRows == 1;
     }
 
     /**
