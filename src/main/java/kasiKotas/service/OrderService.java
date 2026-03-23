@@ -410,6 +410,17 @@ public class OrderService {
     }
 
     /**
+     * Counts the total number of kotas ordered across all time.
+     * @return The total number of kotas (order items) ever ordered.
+     */
+    public int getAllTimeKotasOrdered() {
+        Long total = orderRepository.sumAllKotasOrdered();
+        int result = (total == null) ? 0 : total.intValue();
+        System.out.println("[DailyLimit] Total kotas ordered all-time: " + result);
+        return result;
+    }
+
+    /**
      * Counts the total number of kotas ordered today.
      * This is used for display purposes to show admins how many kotas have been ordered today.
      * Calculates kotas from midnight to now on the current date.
@@ -418,8 +429,9 @@ public class OrderService {
     public int getTodaysKotasOrdered() {
         LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
-        int result = orderRepository.sumKotasOrderedBetween(startOfDay, endOfDay);
-        System.out.println("[DailyLimit] Total kotas ordered today (" + startOfDay + " to " + endOfDay + "): " + result);
-        return result;
+        int todaysTotal = orderRepository.sumKotasOrderedBetween(startOfDay, endOfDay);
+
+        System.out.println("[DailyLimit] Total kotas ordered today (" + startOfDay + " to " + endOfDay + "): " + todaysTotal);
+        return todaysTotal;
     }
 }

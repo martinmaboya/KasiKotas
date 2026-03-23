@@ -41,14 +41,15 @@ public class DailyOrderLimitController {
         
         DailyOrderLimit limit = limitOptional.get();
         int limitValue = limit.getLimitValue();
-        // remaining = total cap - all kotas ever ordered (dynamic, no manual decrement needed)
-        int kotasOrderedTotal = orderService.getTodaysKotasOrdered();
-        int remainingCapacity = Math.max(0, limitValue - kotasOrderedTotal);
+        int kotasOrderedToday = orderService.getTodaysKotasOrdered();
+        int kotasOrderedAllTime = orderService.getAllTimeKotasOrdered();
+        int remainingCapacity = Math.max(0, limitValue - kotasOrderedToday);
 
         Map<String, Object> response = Map.of(
             "id", limit.getId(),
             "limitValue", limitValue,
-            "kotasOrderedToday", kotasOrderedTotal,
+            "kotasOrderedToday", kotasOrderedToday,
+            "kotasOrderedAllTime", kotasOrderedAllTime,
             "remainingCapacity", remainingCapacity
         );
         
@@ -94,7 +95,12 @@ public class DailyOrderLimitController {
     public ResponseEntity<Map<String, Integer>> getTodaysKotasOrdered() {
         try {
             int kotasOrdered = orderService.getTodaysKotasOrdered();
-            return ResponseEntity.ok(Map.of("kotasOrdered", kotasOrdered));
+            int kotasOrderedAllTime = orderService.getAllTimeKotasOrdered();
+            return ResponseEntity.ok(Map.of(
+                "kotasOrdered", kotasOrdered,
+                "kotasOrderedToday", kotasOrdered,
+                "kotasOrderedAllTime", kotasOrderedAllTime
+            ));
         } catch (Exception e) {
             System.err.println("Error getting today's kotas: " + e.getMessage());
             e.printStackTrace();
