@@ -58,6 +58,12 @@ public class Order {
     @Column(nullable = false)
     private String paymentMethod; // e.g., "cod", "eft"
 
+    // EFT orders store the bank account selected at order creation time.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "eft_bank_details_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private BankDetails eftBankDetails;
+
     // Field for delivery method (e.g., "DELIVERY", "COLLECTION")
     @Column
     private String deliveryMethod; // e.g., "DELIVERY", "COLLECTION"

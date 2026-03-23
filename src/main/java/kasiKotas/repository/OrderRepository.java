@@ -31,6 +31,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT DISTINCT o FROM Order o " +
            "LEFT JOIN FETCH o.orderItems oi " +
            "LEFT JOIN FETCH oi.product p " +
+           "LEFT JOIN FETCH o.eftBankDetails bd " +
            "WHERE o.user = :user AND o.orderDate IS NOT NULL " +
            "ORDER BY o.orderDate DESC")
     List<Order> findByUserWithOrderItemsAndProducts(@Param("user") User user);

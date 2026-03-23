@@ -35,6 +35,20 @@ public class BankDetailsController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllBankDetails() {
+        return ResponseEntity.ok(bankDetailsService.getAllBankDetails());
+    }
+
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER')")
+    @GetMapping("/eft")
+    public ResponseEntity<BankDetails> getRandomEftBankDetails() {
+        return bankDetailsService.getRandomEftBankDetails()
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     /**
      * Creates or updates the business bank details.
      * Only accessible by ADMIN users.

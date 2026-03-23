@@ -53,6 +53,7 @@ public class OrderService {
     private final ProductExtraRequirementRepository productExtraRequirementRepository;
     // private final EmailService emailService;
     private final ProductService productService;
+    private final BankDetailsService bankDetailsService;
     private final DailyOrderLimitService dailyOrderLimitService;
 
     private final ObjectMapper objectMapper;
@@ -70,6 +71,7 @@ public class OrderService {
             ProductExtraRequirementRepository productExtraRequirementRepository,
             // EmailService emailService,
             ProductService productService,
+            BankDetailsService bankDetailsService,
             DailyOrderLimitService dailyOrderLimitService,
             ObjectMapper objectMapper) {
         this.orderRepository = orderRepository;
@@ -80,6 +82,7 @@ public class OrderService {
         this.productExtraRequirementRepository = productExtraRequirementRepository;
         // this.emailService = emailService;
         this.productService = productService;
+        this.bankDetailsService = bankDetailsService;
         this.dailyOrderLimitService = dailyOrderLimitService;
         this.objectMapper = objectMapper;
     }
@@ -137,6 +140,12 @@ public class OrderService {
         order.setOrderDate(orderDateTime);
         order.setStatus(Order.OrderStatus.PENDING);
         System.out.println("Initial orderDate set to: " + orderDateTime);
+
+        if ("eft".equalsIgnoreCase(order.getPaymentMethod())) {
+            BankDetails selectedEftAccount = bankDetailsService.getRandomEftBankDetails()
+                    .orElseThrow(() -> new IllegalArgumentException("No EFT bank details configured yet."));
+            order.setEftBankDetails(selectedEftAccount);
+        }
 
         // 3. Process Order Items and validate stock
         if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
@@ -347,6 +356,7 @@ public class OrderService {
         List<Order> orders = orderRepository.findByUser(user);
 
         orders.forEach(order -> {
+            initializeEftBankDetails(order);
             if (order.getOrderItems() != null) {
                 order.getOrderItems().size();
                 order.getOrderItems().forEach(orderItem -> {
@@ -382,6 +392,7 @@ public class OrderService {
         
         // Still need to process JSON fields for extras and sauces since they can't be fetched with JOIN
         orders.forEach(order -> {
+            initializeEftBankDetails(order);
             if (order.getOrderItems() != null) {
                 order.getOrderItems().forEach(orderItem -> {
                     if (StringUtils.hasText(orderItem.getSelectedExtrasJson())) {
@@ -405,6 +416,7 @@ public class OrderService {
     public List<Order> getAllOrders() {
         List<Order> orders = orderRepository.findAll();
         orders.forEach(order -> {
+            initializeEftBankDetails(order);
             if (order.getUser() != null) {
                 order.getUser().getFirstName();
                 order.getUser().getLastName();
@@ -438,6 +450,7 @@ public class OrderService {
     public Optional<Order> getOrderById(Long orderId) {
         Optional<Order> orderOptional = orderRepository.findById(orderId);
         orderOptional.ifPresent(order -> {
+            initializeEftBankDetails(order);
             if (order.getUser() != null) {
                 order.getUser().getFirstName();
                 order.getUser().getLastName();
@@ -524,5 +537,16 @@ public class OrderService {
 
         System.out.println("[DailyLimit] Total kotas ordered today (" + startOfDay + " to " + endOfDay + "): " + todaysTotal);
         return todaysTotal;
+    }
+
+    private void initializeEftBankDetails(Order order) {
+        if (order.getEftBankDetails() != null) {
+            order.getEftBankDetails().getId();
+            order.getEftBankDetails().getBankName();
+            order.getEftBankDetails().getAccountName();
+            order.getEftBankDetails().getAccountNumber();
+            order.getEftBankDetails().getBranchCode();
+            order.getEftBankDetails().getShapId();
+        }
     }
 }

@@ -5,6 +5,8 @@ import kasiKotas.model.BankDetails;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 /**
  * Spring Data JPA repository for the BankDetails entity.
  * Provides standard CRUD operations for BankDetails entities.
@@ -16,4 +18,5 @@ public interface BankDetailsRepository extends JpaRepository<BankDetails, Long> 
     // JpaRepository provides methods like save(), findById(), findAll(), deleteById(), etc.
     // Since we anticipate only one set of bank details, findById(1L) or findAll() and taking the first
     // will be common operations.
+    Optional<BankDetails> findByAccountNumber(String accountNumber);
 }
