@@ -4,6 +4,7 @@ package kasiKotas.service;
 import kasiKotas.model.Product;
 import kasiKotas.repository.ProductExtraRequirementRepository;
 import kasiKotas.repository.ProductRepository;
+import kasiKotas.repository.ReviewRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,8 +17,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID; // For generating unique filenames
+import java.util.stream.Collectors;
 
 /**
  * Service layer for managing Product (Kota) related business logic.
@@ -30,6 +33,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final ProductExtraRequirementRepository productExtraRequirementRepository;
+    private final ReviewRepository reviewRepository;
 
     // Define the upload directory for product images
     // IMPORTANT: In a real application, this should be outside the compiled JAR/WAR
@@ -40,9 +44,11 @@ public class ProductService {
 
     @Autowired
     public ProductService(ProductRepository productRepository,
-                          ProductExtraRequirementRepository productExtraRequirementRepository) {
+                          ProductExtraRequirementRepository productExtraRequirementRepository,
+                          ReviewRepository reviewRepository) {
         this.productRepository = productRepository;
         this.productExtraRequirementRepository = productExtraRequirementRepository;
+        this.reviewRepository = reviewRepository;
         // Create the directory if it doesn't exist when the service is initialized
         try {
             Files.createDirectories(this.imageStorageLocation);
@@ -57,8 +63,11 @@ public class ProductService {
      * @return A list of all Product objects.
      */
     public List<Product> getAllProducts() {
-        return productRepository.findAll().stream()
-                .map(this::toResponseProduct)
+        List<Product> products = productRepository.findAll();
+        Map<Long, ReviewRepository.ProductReviewSummaryProjection> reviewSummaryByProductId = getReviewSummaryByProductId(products);
+
+        return products.stream()
+                .map(product -> toResponseProduct(product, reviewSummaryByProductId.get(product.getId())))
                 .toList();
     }
 
@@ -68,7 +77,13 @@ public class ProductService {
      * @return An Optional containing the Product if found, or empty if not found.
      */
     public Optional<Product> getProductById(Long id) {
-        return productRepository.findById(id).map(this::toResponseProduct);
+        return productRepository.findById(id)
+                .map(product -> {
+                    List<ReviewRepository.ProductReviewSummaryProjection> summaries =
+                            reviewRepository.findReviewSummariesByProductIds(List.of(product.getId()));
+                    ReviewRepository.ProductReviewSummaryProjection summary = summaries.isEmpty() ? null : summaries.get(0);
+                    return toResponseProduct(product, summary);
+                });
     }
 
     /**
@@ -241,10 +256,17 @@ public class ProductService {
         }
     }
 
-    private Product toResponseProduct(Product source) {
+    private Product toResponseProduct(Product source, ReviewRepository.ProductReviewSummaryProjection reviewSummary) {
         boolean hasRequiredExtraShortage = productExtraRequirementRepository.hasInsufficientRequiredExtra(source.getId());
         boolean availableByOwnStock = source.getStock() != null && source.getStock() > 0;
         boolean available = availableByOwnStock && !hasRequiredExtraShortage;
+
+        double averageRating = 0.0;
+        long totalReviews = 0L;
+        if (reviewSummary != null) {
+            averageRating = reviewSummary.getAverageRating() == null ? 0.0 : reviewSummary.getAverageRating();
+            totalReviews = reviewSummary.getTotalReviews() == null ? 0L : reviewSummary.getTotalReviews();
+        }
 
         Product response = Product.builder()
                 .id(source.getId())
@@ -259,6 +281,22 @@ public class ProductService {
                 .build();
         response.setAvailable(available);
         response.setEffectiveStock(available ? source.getStock() : 0);
+        response.setAverageRating(Math.round(averageRating * 10.0) / 10.0);
+        response.setTotalReviews(totalReviews);
         return response;
+    }
+
+    private Map<Long, ReviewRepository.ProductReviewSummaryProjection> getReviewSummaryByProductId(List<Product> products) {
+        if (products == null || products.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Long> productIds = products.stream()
+                .map(Product::getId)
+                .toList();
+
+        return reviewRepository.findReviewSummariesByProductIds(productIds)
+                .stream()
+                .collect(Collectors.toMap(ReviewRepository.ProductReviewSummaryProjection::getProductId, summary -> summary));
     }
 }

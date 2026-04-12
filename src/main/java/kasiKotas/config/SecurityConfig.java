@@ -55,6 +55,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
             // Allow all CORS preflight requests through before the JWT filter sees them
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            .requestMatchers(HttpMethod.GET,
+                "/api/products/get-all",
+                "/api/products/*/image",
+                "/api/products/*/reviews",
+                "/api/products/*/reviews/summary"
+            ).permitAll()
             .requestMatchers(
                 "/",
                 "/home",
@@ -62,8 +68,6 @@ public class SecurityConfig {
                 "/public/**",
                 "/register",
                 "/api/users/register",
-                "/api/products/get-all",
-                "/api/products/*/image",
                 "/product-images/**",
                 "/api/extras",
                 "/api/sauces",

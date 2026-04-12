@@ -55,6 +55,12 @@ public class Product {
     @Transient
     private Boolean available; // Computed availability (product stock + required extras)
 
+    @Transient
+    private Double averageRating; // Computed average review rating for display
+
+    @Transient
+    private Long totalReviews; // Computed total number of reviews for display
+
     @Lob
     @Basic(fetch = FetchType.LAZY)
     private byte[] image; // NEW: Image data for the product, stored as a blob in the database.
