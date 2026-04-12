@@ -69,4 +69,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Count ALL order item quantities across all time (used for daily limit tracking)
     @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi")
     Long sumAllKotasOrdered();
+
+    // Check if user has a completed order (DELIVERED or COLLECTED) containing a specific product
+    @Query("SELECT COUNT(o) > 0 FROM Order o " +
+           "JOIN o.orderItems oi " +
+           "WHERE o.user.id = :userId " +
+           "AND oi.product.id = :productId " +
+           "AND (o.status = 'DELIVERED' OR o.status = 'COLLECTED')")
+    boolean hasCompletedOrderWithProduct(@Param("userId") Long userId, @Param("productId") Long productId);
 }

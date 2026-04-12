@@ -8,6 +8,7 @@ import kasiKotas.dto.ReviewUpsertResponse;
 import kasiKotas.model.Product;
 import kasiKotas.model.Review;
 import kasiKotas.model.User;
+import kasiKotas.repository.OrderRepository;
 import kasiKotas.repository.ProductRepository;
 import kasiKotas.repository.ReviewRepository;
 import kasiKotas.repository.UserRepository;
@@ -26,14 +27,17 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
 
     @Autowired
     public ReviewService(ReviewRepository reviewRepository,
                          ProductRepository productRepository,
-                         UserRepository userRepository) {
+                         UserRepository userRepository,
+                         OrderRepository orderRepository) {
         this.reviewRepository = reviewRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
+        this.orderRepository = orderRepository;
     }
 
     public ReviewUpsertResponse createOrUpdateReview(Long productId, CreateReviewRequest request, String userEmail) {
@@ -44,6 +48,12 @@ public class ReviewService {
 
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userEmail));
+
+        // Check if user has completed order containing this product
+        boolean hasCompletedOrder = orderRepository.hasCompletedOrderWithProduct(user.getId(), productId);
+        if (!hasCompletedOrder) {
+            throw new IllegalArgumentException("You can only review products you have ordered and received.");
+        }
 
         var existingReview = reviewRepository.findByProductIdAndUserId(productId, user.getId());
         boolean isNewReview = existingReview.isEmpty();
