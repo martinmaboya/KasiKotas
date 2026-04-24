@@ -77,6 +77,13 @@
             return userRepository.findById(id);
         }
 
+        public Optional<User> getUserByEmail(String email) {
+            if (!StringUtils.hasText(email)) {
+                return Optional.empty();
+            }
+            return userRepository.findByEmail(email);
+        }
+
         public Optional<User> updateUser(Long id, User userDetails) {
             return userRepository.findById(id)
                     .map(existingUser -> {

@@ -79,6 +79,8 @@ public class SecurityConfig {
                 "/api/auth/verify-otp",
                 "/api/auth/user-firstname",
                 "/api/auth/login",
+                "/api/auth/passkey/login/options",
+                "/api/auth/passkey/login/verify",
                 "/api/auth/get-reset-token",
                 "/api/auth/reset-password-by-email",
                 "/api/auth/google",
