@@ -27,20 +27,18 @@ public class SecurityConfig {
     public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
         org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
 
-        // Use patterns to avoid strict string mismatches from hosted frontend origins.
+        // Use wildcard origin patterns to prevent strict CORS mismatches in hosted environments.
         configuration.setAllowedOriginPatterns(java.util.List.of(
-            "https://kasikotas-frondend.onrender.com",
-            "https://kasikotas-frontend.onrender.com",
-            "https://*.onrender.com",
-            "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:3000"
+            "https://*",
+            "http://localhost:*",
+            "http://127.0.0.1:*"
         ));
 
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(java.util.List.of("*"));
         configuration.setExposedHeaders(java.util.List.of("Authorization"));
         configuration.setAllowCredentials(true); // ✅ safe now since we’re not using "*"
+        configuration.setMaxAge(3600L);
 
         org.springframework.web.cors.UrlBasedCorsConfigurationSource source =
                 new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
