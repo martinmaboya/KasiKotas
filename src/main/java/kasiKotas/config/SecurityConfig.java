@@ -27,14 +27,15 @@ public class SecurityConfig {
     public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
         org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
 
-        // ✅ Use explicit origins or patterns
-        configuration.setAllowedOrigins(java.util.List.of(
-                "https://kasikotas-frondend.onrender.com",
-                "http://localhost:5173",
-                "http://localhost:5174",
-                "http://localhost:3000"
+        // Use patterns to avoid strict string mismatches from hosted frontend origins.
+        configuration.setAllowedOriginPatterns(java.util.List.of(
+            "https://kasikotas-frondend.onrender.com",
+            "https://kasikotas-frontend.onrender.com",
+            "https://*.onrender.com",
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:3000"
         ));
-        // OR: configuration.setAllowedOriginPatterns(List.of("*")); if you want wildcard matching
 
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(java.util.List.of("*"));
