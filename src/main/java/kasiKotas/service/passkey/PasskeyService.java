@@ -66,6 +66,18 @@ public class PasskeyService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
+        return createRegistrationOptions(user);
+    }
+
+    public Map<String, Object> createRegistrationOptions(User user) {
+        if (user == null || user.getId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is required for passkey registration");
+        }
+
+        if (passkeyCredentialRepository.countByUserId(user.getId()) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Passkey already enrolled for this user");
+        }
+
         UserIdentity userIdentity = UserIdentity.builder()
                 .name(user.getEmail())
                 .displayName(user.getFirstName() + " " + user.getLastName())
@@ -87,6 +99,13 @@ public class PasskeyService {
         response.put("requestId", requestId);
         response.put("publicKey", registrationRequest);
         return response;
+    }
+
+    public boolean hasPasskeyEnrollment(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        return passkeyCredentialRepository.countByUserId(userId) > 0;
     }
 
     public void verifyRegistration(String requestId, JsonNode credentialNode, String nickname) {

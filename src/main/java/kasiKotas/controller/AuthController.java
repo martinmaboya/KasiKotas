@@ -37,13 +37,13 @@ public class AuthController {
     private ObjectMapper objectMapper;
 
     @PostMapping("/login")
-    public ResponseEntity<?> loginUser(@RequestBody Map<String, String> loginRequest) {
-        String email = loginRequest.get("email");
-        String password = loginRequest.get("password");
+    public ResponseEntity<?> loginUser(@RequestBody Map<String, Object> loginRequest) {
+        String email = stringValue(loginRequest.get("email"));
+        String password = stringValue(loginRequest.get("password"));
+        boolean enablePasskey = booleanValue(loginRequest.get("enablePasskey"));
 
         return userService.authenticateUser(email, password)
                 .map(user -> {
-                    // FIXED: Pass both email AND role to generateToken
                     String token = jwtUtil.generateToken(user.getEmail(), user.getRole().toString());
                     Map<String, Object> response = new HashMap<>();
                     response.put("message", "Login successful");
@@ -51,7 +51,22 @@ public class AuthController {
                     response.put("id", user.getId());
                     response.put("firstName", user.getFirstName());
                     response.put("role", user.getRole());
-                    // Add other user fields as needed
+
+                    if (enablePasskey) {
+                        if (passkeyService.hasPasskeyEnrollment(user.getId())) {
+                            response.put("passkeyEnrollment", Map.of(
+                                    "enabled", false,
+                                    "status", "already_enrolled"
+                            ));
+                        } else {
+                            response.put("passkeyEnrollment", Map.of(
+                                    "enabled", true,
+                                    "status", "required",
+                                    "registration", passkeyService.createRegistrationOptions(user)
+                            ));
+                        }
+                    }
+
                     return ResponseEntity.ok(response);
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -192,5 +207,19 @@ public class AuthController {
 
     private JsonNode toJsonNode(Object value) {
         return objectMapper.valueToTree(value);
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private boolean booleanValue(Object value) {
+        if (value instanceof Boolean booleanValue) {
+            return booleanValue;
+        }
+        if (value instanceof String stringValue) {
+            return Boolean.parseBoolean(stringValue);
+        }
+        return false;
     }
 }
