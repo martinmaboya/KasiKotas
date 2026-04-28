@@ -146,7 +146,9 @@ public class PasskeyService {
 
         PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> credential = parseRegistrationCredential(credentialNode);
 
+        System.out.println("DEBUG verifyRegistration calling finishRegistration for requestId=" + requestId);
         var result = finishRegistration(registrationRequest, credential);
+        System.out.println("DEBUG verifyRegistration finishRegistration succeeded for requestId=" + requestId + ", credentialId=" + result.getKeyId().getId().getBase64Url());
 
         Optional<User> userOpt = userRepository.findById(pendingRequest.userId());
         if (userOpt.isEmpty()) {
@@ -154,19 +156,23 @@ public class PasskeyService {
         }
 
         var transports = credential.getResponse().getTransports();
+        String transportsValue = transports == null
+            ? ""
+            : transports.stream().map(AuthenticatorTransport::toString).collect(Collectors.joining(","));
 
         PasskeyCredential passkeyCredential = PasskeyCredential.builder()
                 .user(userOpt.get())
                 .credentialId(result.getKeyId().getId().getBase64Url())
                 .publicKey(result.getPublicKeyCose().getBase64Url())
                 .signCount(result.getSignatureCount())
-                .transports(transports.stream().map(AuthenticatorTransport::toString).collect(Collectors.joining(",")))
+            .transports(transportsValue)
                 .nickname(nickname)
                 .createdAt(LocalDateTime.now())
                 .lastUsedAt(null)
                 .build();
 
         passkeyCredentialRepository.save(passkeyCredential);
+        System.out.println("DEBUG verifyRegistration saved passkey credential for userId=" + pendingRequest.userId() + ", nickname=" + nickname);
     }
 
     public Map<String, Object> createLoginOptions(String email) {
