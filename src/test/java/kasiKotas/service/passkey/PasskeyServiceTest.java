@@ -87,11 +87,12 @@ class PasskeyServiceTest {
 
         doReturn(credential).when(service).parseRegistrationCredential(any());
         when(challengeStore.consumeRegistrationRequest("request-123")).thenReturn(Optional.of(new WebAuthnChallengeStore.PendingRequest(
-                WebAuthnChallenge.ChallengeType.REGISTRATION,
-                user.getEmail(),
-                user.getId(),
-                request,
-                Instant.now()
+            WebAuthnChallenge.ChallengeType.REGISTRATION,
+            user.getEmail(),
+            user.getId(),
+            request,
+            null,
+            Instant.now()
         )));
         when(relyingParty.finishRegistration(any())).thenReturn(registrationResult);
         when(registrationResult.getKeyId()).thenReturn(PublicKeyCredentialDescriptor.builder().id(new ByteArray(new byte[]{1, 2, 3})).build());
@@ -148,11 +149,12 @@ class PasskeyServiceTest {
 
         doReturn(credential).when(service).parseAssertionCredential(any());
         when(challengeStore.consumeAssertionRequest("request-456")).thenReturn(Optional.of(new WebAuthnChallengeStore.PendingRequest(
-                WebAuthnChallenge.ChallengeType.ASSERTION,
-                user.getEmail(),
-                user.getId(),
-                assertionRequest,
-                Instant.now()
+            WebAuthnChallenge.ChallengeType.ASSERTION,
+            user.getEmail(),
+            user.getId(),
+            assertionRequest,
+            null,
+            Instant.now()
         )));
         when(relyingParty.finishAssertion(any())).thenReturn(assertionResult);
         when(assertionResult.isSuccess()).thenReturn(true);
@@ -179,11 +181,12 @@ class PasskeyServiceTest {
 
         doReturn(credential).when(service).parseAssertionCredential(any());
         when(challengeStore.consumeAssertionRequest("request-456")).thenReturn(Optional.of(new WebAuthnChallengeStore.PendingRequest(
-                WebAuthnChallenge.ChallengeType.ASSERTION,
-                user.getEmail(),
-                user.getId(),
-                assertionRequest,
-                Instant.now()
+            WebAuthnChallenge.ChallengeType.ASSERTION,
+            user.getEmail(),
+            user.getId(),
+            assertionRequest,
+            null,
+            Instant.now()
         )));
         when(relyingParty.finishAssertion(any())).thenReturn(assertionResult);
         when(assertionResult.isSuccess()).thenReturn(true);
