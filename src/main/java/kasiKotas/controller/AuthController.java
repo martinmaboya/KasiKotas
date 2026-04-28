@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
@@ -81,11 +82,22 @@ public class AuthController {
     }
 
     @PostMapping("/passkey/login/options")
-    public ResponseEntity<?> passkeyLoginOptions(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
+    public ResponseEntity<?> passkeyLoginOptions(@RequestBody Map<String, String> requestBody,
+                                                 HttpServletRequest request) {
+        String email = requestBody.get("email");
         if (email == null || email.isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Collections.singletonMap("message", "email is required"));
+        }
+
+        System.out.println("DEBUG passkeyLoginOptions called: Origin=" + request.getHeader("Origin")
+                + ", RemoteAddr=" + request.getRemoteAddr() + ", URI=" + request.getRequestURI());
+        java.util.Enumeration<String> headerNames = request.getHeaderNames();
+        if (headerNames != null) {
+            while (headerNames.hasMoreElements()) {
+                String name = headerNames.nextElement();
+                System.out.println("HEADER: " + name + " = " + request.getHeader(name));
+            }
         }
 
         return ResponseEntity.ok(passkeyService.createLoginOptions(email));
