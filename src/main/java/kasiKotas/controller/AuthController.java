@@ -49,8 +49,7 @@ public class AuthController {
                     response.put("token", token);
                     response.put("id", user.getId());
                     response.put("firstName", user.getFirstName());
-                    response.put("role", user.getRole()); // Make sure this returns "ADMIN" or "USER"
-                    response.put("email", user.getEmail()); // Added for completeness
+                    response.put("role", user.getRole());
                     // Add other user fields as needed
                     return ResponseEntity.ok(response);
                 })
@@ -60,7 +59,7 @@ public class AuthController {
 
     @PostMapping("/passkey/register/options")
     public ResponseEntity<?> passkeyRegisterOptions(@RequestBody(required = false) Map<String, String> request) {
-        String email = resolveAuthenticatedEmail();
+        String email = resolvePasskeyRegistrationEmail(request);
         return ResponseEntity.ok(passkeyService.createRegistrationOptions(email));
     }
 
@@ -111,7 +110,6 @@ public class AuthController {
         response.put("id", user.getId());
         response.put("firstName", user.getFirstName());
         response.put("role", user.getRole());
-        response.put("email", user.getEmail());
         return ResponseEntity.ok(response);
     }
 
@@ -152,6 +150,29 @@ public class AuthController {
         }
 
         throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+    }
+
+    private String resolvePasskeyRegistrationEmail(Map<String, String> request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof UserDetails userDetails) {
+                return userDetails.getUsername();
+            }
+
+            if (principal instanceof String username && !"anonymousUser".equalsIgnoreCase(username)) {
+                return username;
+            }
+        }
+
+        if (request != null) {
+            String email = request.get("email");
+            if (email != null && !email.isBlank()) {
+                return email.trim();
+            }
+        }
+
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "email is required for passkey registration");
     }
 
     private JsonNode toJsonNode(Object value) {

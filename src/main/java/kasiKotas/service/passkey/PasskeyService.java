@@ -11,12 +11,14 @@ import com.yubico.webauthn.StartAssertionOptions;
 import com.yubico.webauthn.StartRegistrationOptions;
 import com.yubico.webauthn.data.AuthenticatorAttestationResponse;
 import com.yubico.webauthn.data.AuthenticatorAssertionResponse;
+import com.yubico.webauthn.data.AuthenticatorSelectionCriteria;
 import com.yubico.webauthn.data.AuthenticatorTransport;
 import com.yubico.webauthn.data.ByteArray;
 import com.yubico.webauthn.data.ClientAssertionExtensionOutputs;
 import com.yubico.webauthn.data.ClientRegistrationExtensionOutputs;
 import com.yubico.webauthn.data.PublicKeyCredential;
 import com.yubico.webauthn.data.PublicKeyCredentialCreationOptions;
+import com.yubico.webauthn.data.UserVerificationRequirement;
 import com.yubico.webauthn.data.UserIdentity;
 import com.yubico.webauthn.exception.AssertionFailedException;
 import com.yubico.webauthn.exception.RegistrationFailedException;
@@ -73,6 +75,9 @@ public class PasskeyService {
         PublicKeyCredentialCreationOptions registrationRequest = relyingParty.startRegistration(
                 StartRegistrationOptions.builder()
                         .user(userIdentity)
+                .authenticatorSelection(AuthenticatorSelectionCriteria.builder()
+                    .userVerification(UserVerificationRequirement.PREFERRED)
+                    .build())
                         .build()
         );
 
@@ -127,10 +132,11 @@ public class PasskeyService {
         AssertionRequest assertionRequest = relyingParty.startAssertion(
                 StartAssertionOptions.builder()
                         .username(user.getEmail())
+                .userVerification(UserVerificationRequirement.PREFERRED)
                         .build()
         );
 
-        String requestId = challengeStore.putAssertionRequest(user.getEmail(), assertionRequest);
+        String requestId = challengeStore.putAssertionRequest(user.getEmail(), user.getId(), assertionRequest);
 
         Map<String, Object> response = new HashMap<>();
         response.put("requestId", requestId);
@@ -156,12 +162,12 @@ public class PasskeyService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        passkeyCredentialRepository.findByCredentialId(result.getCredentialId().getBase64Url())
-                .ifPresent(storedCredential -> {
-                    storedCredential.setSignCount(result.getSignatureCount());
-                    storedCredential.setLastUsedAt(LocalDateTime.now());
-                    passkeyCredentialRepository.save(storedCredential);
-                });
+        PasskeyCredential storedCredential = passkeyCredentialRepository.findByCredentialId(result.getCredentialId().getBase64Url())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown credential"));
+
+        storedCredential.setSignCount(result.getSignatureCount());
+        storedCredential.setLastUsedAt(LocalDateTime.now());
+        passkeyCredentialRepository.save(storedCredential);
 
         return user;
     }
@@ -194,7 +200,7 @@ public class PasskeyService {
         passkeyCredentialRepository.delete(passkey);
     }
 
-    private PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> parseRegistrationCredential(
+        PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> parseRegistrationCredential(
             JsonNode credentialNode
     ) {
         try {
@@ -204,7 +210,7 @@ public class PasskeyService {
         }
     }
 
-    private PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs> parseAssertionCredential(
+        PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs> parseAssertionCredential(
             JsonNode credentialNode
     ) {
         try {

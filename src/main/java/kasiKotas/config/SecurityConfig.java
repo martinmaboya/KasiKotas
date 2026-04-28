@@ -84,7 +84,9 @@ public class SecurityConfig {
                 "/api/auth/reset-password-by-email",
                 "/api/auth/google",
                 "/api/auth/facebook",
-                "/api/auth/oauth/status"
+                "/api/auth/oauth/status",
+                "/api/auth/passkey/register/options",
+                "/api/auth/passkey/register/verify"
             ).permitAll()
              .anyRequest().authenticated()
                 )
