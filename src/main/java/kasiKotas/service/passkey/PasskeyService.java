@@ -124,7 +124,10 @@ public class PasskeyService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
+        System.out.println("DEBUG createLoginOptions user found id=" + user.getId() + ", email=" + user.getEmail());
+
         long passkeyCount = passkeyCredentialRepository.countByUserId(user.getId());
+        System.out.println("DEBUG createLoginOptions passkeyCount=" + passkeyCount + " for userId=" + user.getId());
         if (passkeyCount == 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No passkey enrolled for this user");
         }
@@ -136,7 +139,11 @@ public class PasskeyService {
                         .build()
         );
 
+            System.out.println("DEBUG createLoginOptions startAssertion completed for userId=" + user.getId());
+
         String requestId = challengeStore.putAssertionRequest(user.getEmail(), user.getId(), assertionRequest);
+
+            System.out.println("DEBUG createLoginOptions challenge stored requestId=" + requestId + " for userId=" + user.getId());
 
         Map<String, Object> response = new HashMap<>();
         response.put("requestId", requestId);

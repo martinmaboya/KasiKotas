@@ -100,7 +100,10 @@ public class AuthController {
             }
         }
 
-        return ResponseEntity.ok(passkeyService.createLoginOptions(email));
+        System.out.println("DEBUG passkeyLoginOptions before service call for email=" + email);
+        ResponseEntity<?> response = ResponseEntity.ok(passkeyService.createLoginOptions(email));
+        System.out.println("DEBUG passkeyLoginOptions after service call for email=" + email);
+        return response;
     }
 
     @PostMapping("/passkey/login/verify")
