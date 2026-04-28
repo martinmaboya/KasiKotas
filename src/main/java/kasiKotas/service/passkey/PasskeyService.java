@@ -256,6 +256,11 @@ public class PasskeyService {
                     .response(credential)
                     .build());
         } catch (RegistrationFailedException e) {
+            System.out.println("DEBUG finishRegistration failed: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            if (e.getCause() != null) {
+                System.out.println("DEBUG finishRegistration root cause: " + e.getCause().getClass().getSimpleName() + " - " + e.getCause().getMessage());
+            }
+            e.printStackTrace();
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Passkey registration verification failed");
         }
     }
