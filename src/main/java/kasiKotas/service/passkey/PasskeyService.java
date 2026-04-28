@@ -286,13 +286,24 @@ public class PasskeyService {
                     .response(credential)
                     .build());
         } catch (RegistrationFailedException e) {
-            System.out.println("DEBUG finishRegistration failed: " + e.getClass().getSimpleName() + " - " + e.getMessage());
-            if (e.getCause() != null) {
-                System.out.println("DEBUG finishRegistration root cause: " + e.getCause().getClass().getSimpleName() + " - " + e.getCause().getMessage());
-            }
-            e.printStackTrace();
+            logRegistrationFailure("RegistrationFailedException", e);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Passkey registration verification failed");
+        } catch (RuntimeException e) {
+            logRegistrationFailure("RuntimeException", e);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Passkey registration verification failed");
         }
+    }
+
+    private void logRegistrationFailure(String label, Exception exception) {
+        System.out.println("DEBUG finishRegistration failed [" + label + "]: " + exception.getClass().getName() + " - " + exception.getMessage());
+        Throwable cause = exception.getCause();
+        int depth = 0;
+        while (cause != null && depth < 4) {
+            System.out.println("DEBUG finishRegistration cause[" + depth + "]: " + cause.getClass().getName() + " - " + cause.getMessage());
+            cause = cause.getCause();
+            depth++;
+        }
+        exception.printStackTrace();
     }
 
     private AssertionResult finishAssertion(
