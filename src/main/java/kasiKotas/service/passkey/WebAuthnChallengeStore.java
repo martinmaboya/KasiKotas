@@ -87,22 +87,24 @@ public class WebAuthnChallengeStore {
                 : fromJsonAssertion(challenge.getRequestJson());
 
         return Optional.of(new PendingRequest(
-                expectedType,
-                challenge.getEmail(),
-                challenge.getUserId(),
-                request,
-                challenge.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant()
+            expectedType,
+            challenge.getEmail(),
+            challenge.getUserId(),
+            request,
+            challenge.getRequestJson(),
+            challenge.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant()
         ));
     }
 
-    public record PendingRequest(
+        public record PendingRequest(
             WebAuthnChallenge.ChallengeType type,
             String email,
             Long userId,
             Object request,
+            String requestJson,
             Instant createdAt
-    ) {
-    }
+        ) {
+        }
 
     private String toJson(Object request) {
         try {

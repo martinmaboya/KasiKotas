@@ -114,6 +114,36 @@ public class PasskeyService {
 
         PublicKeyCredentialCreationOptions registrationRequest = (PublicKeyCredentialCreationOptions) pendingRequest.request();
 
+        // Verbose diagnostics to help debug production failures where finishRegistration isn't logging
+        try {
+            System.out.println("DEBUG verifyRegistration requestId=" + requestId + " userId=" + pendingRequest.userId() + " email=" + pendingRequest.email());
+            System.out.println("DEBUG verifyRegistration stored request JSON (truncated): " + (pendingRequest.requestJson() == null ? "<null>" : pendingRequest.requestJson().replaceAll("\\s+"," ").substring(0, Math.min(800, pendingRequest.requestJson().length()))));
+        } catch (Exception ex) {
+            System.out.println("DEBUG verifyRegistration: failed to print stored requestJson: " + ex.getMessage());
+        }
+
+        try {
+            String credentialStr = objectMapper.writeValueAsString(credentialNode);
+            System.out.println("DEBUG verifyRegistration incoming credential (truncated): " + credentialStr.replaceAll("\\s+", " ").substring(0, Math.min(1200, credentialStr.length())));
+
+            JsonNode idNode = credentialNode.get("id");
+            JsonNode rawIdNode = credentialNode.get("rawId");
+            JsonNode responseNode = credentialNode.get("response");
+            JsonNode attestationObjectNode = responseNode == null ? null : responseNode.get("attestationObject");
+            JsonNode clientDataJSONNode = responseNode == null ? null : responseNode.get("clientDataJSON");
+
+            System.out.println("DEBUG verifyRegistration fields present: id=" + (idNode != null) + " rawId=" + (rawIdNode != null) + " attestationObject=" + (attestationObjectNode != null) + " clientDataJSON=" + (clientDataJSONNode != null));
+
+            if (attestationObjectNode != null && attestationObjectNode.isTextual()) {
+                System.out.println("DEBUG verifyRegistration attestationObject length=" + attestationObjectNode.asText().length());
+            }
+            if (clientDataJSONNode != null && clientDataJSONNode.isTextual()) {
+                System.out.println("DEBUG verifyRegistration clientDataJSON length=" + clientDataJSONNode.asText().length());
+            }
+        } catch (Exception ex) {
+            System.out.println("DEBUG verifyRegistration: failed to print incoming credential: " + ex.getMessage());
+        }
+
         PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> credential = parseRegistrationCredential(credentialNode);
 
         var result = finishRegistration(registrationRequest, credential);
