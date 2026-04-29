@@ -91,7 +91,17 @@ public class AuthController {
         }
 
         JsonNode credentialNode = toJsonNode(credentialObj);
-        passkeyService.verifyRegistration(requestId, credentialNode, nickname);
+        try {
+            passkeyService.verifyRegistration(requestId, credentialNode, nickname);
+        } catch (org.springframework.web.server.ResponseStatusException rse) {
+            System.out.println("DEBUG passkeyRegisterVerify ResponseStatusException: status=" + rse.getStatusCode() + " reason=" + rse.getReason());
+            rse.printStackTrace();
+            throw rse;
+        } catch (Exception e) {
+            System.out.println("DEBUG passkeyRegisterVerify unexpected exception: " + e.getClass().getName() + " - " + e.getMessage());
+            e.printStackTrace();
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Passkey registration failed");
+        }
 
         return ResponseEntity.ok(Collections.singletonMap("message", "Passkey registered successfully"));
     }

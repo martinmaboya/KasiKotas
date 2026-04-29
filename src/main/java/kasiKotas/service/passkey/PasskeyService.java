@@ -266,9 +266,16 @@ public class PasskeyService {
             JsonNode credentialNode
     ) {
         try {
-            return PublicKeyCredential.parseRegistrationResponseJson(objectMapper.writeValueAsString(credentialNode));
+                return PublicKeyCredential.parseRegistrationResponseJson(objectMapper.writeValueAsString(credentialNode));
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid registration credential payload");
+                try {
+                    System.out.println("DEBUG parseRegistrationCredential failed, payload (truncated): " + objectMapper.writeValueAsString(credentialNode).replaceAll("\\s+"," ").substring(0, Math.min(1200, objectMapper.writeValueAsString(credentialNode).length())));
+                } catch (Exception ex) {
+                    System.out.println("DEBUG parseRegistrationCredential: failed to serialize credentialNode for logging: " + ex.getMessage());
+                }
+                System.out.println("DEBUG parseRegistrationCredential exception: " + e.getClass().getName() + " - " + e.getMessage());
+                e.printStackTrace();
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid registration credential payload: " + e.getMessage());
         }
     }
 
