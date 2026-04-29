@@ -2,6 +2,7 @@ package kasiKotas.service.passkey;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yubico.webauthn.AssertionRequest;
 import com.yubico.webauthn.AssertionResult;
 import com.yubico.webauthn.FinishAssertionOptions;
@@ -266,7 +267,8 @@ public class PasskeyService {
             JsonNode credentialNode
     ) {
         try {
-                return PublicKeyCredential.parseRegistrationResponseJson(objectMapper.writeValueAsString(credentialNode));
+                JsonNode sanitizedCredentialNode = sanitizeRegistrationCredentialNode(credentialNode);
+                return PublicKeyCredential.parseRegistrationResponseJson(objectMapper.writeValueAsString(sanitizedCredentialNode));
         } catch (Exception e) {
                 try {
                     System.out.println("DEBUG parseRegistrationCredential failed, payload (truncated): " + objectMapper.writeValueAsString(credentialNode).replaceAll("\\s+"," ").substring(0, Math.min(1200, objectMapper.writeValueAsString(credentialNode).length())));
@@ -278,6 +280,18 @@ public class PasskeyService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid registration credential payload: " + e.getMessage());
         }
     }
+
+        private JsonNode sanitizeRegistrationCredentialNode(JsonNode credentialNode) {
+            if (!(credentialNode instanceof ObjectNode objectNode)) {
+                return credentialNode;
+            }
+
+            // Some clients attach app-level fields like "nickname" inside credential.
+            // Yubico parser expects strict PublicKeyCredential fields only.
+            ObjectNode sanitized = objectNode.deepCopy();
+            sanitized.remove("nickname");
+            return sanitized;
+        }
 
         PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs> parseAssertionCredential(
             JsonNode credentialNode
