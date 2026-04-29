@@ -33,6 +33,9 @@ public class WebAuthnConfig {
 
         validateOrigins(origins);
 
+        // Diagnostic: print configured RP and origins to logs at startup
+        System.out.println("DEBUG WebAuthnConfig: rpId=" + rpId + " rpName=" + rpName + " origins=" + origins);
+
         return RelyingParty.builder()
                 .identity(RelyingPartyIdentity.builder()
                         .id(rpId)
