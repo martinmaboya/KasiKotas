@@ -2,16 +2,20 @@ package kasiKotas.service.passkey;
 
 import com.yubico.webauthn.CredentialRepository;
 import com.yubico.webauthn.RegisteredCredential;
+import com.yubico.webauthn.data.AuthenticatorTransport;
 import com.yubico.webauthn.data.ByteArray;
-import com.yubico.webauthn.data.exception.Base64UrlException;
 import com.yubico.webauthn.data.PublicKeyCredentialDescriptor;
+import com.yubico.webauthn.data.exception.Base64UrlException;
 import kasiKotas.model.PasskeyCredential;
 import kasiKotas.repository.PasskeyCredentialRepository;
 import kasiKotas.repository.UserRepository;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -89,10 +93,39 @@ public class WebAuthnCredentialRepositoryAdapter implements CredentialRepository
     private Optional<PublicKeyCredentialDescriptor> toPublicKeyCredentialDescriptor(PasskeyCredential credential) {
         try {
             ByteArray credentialId = ByteArray.fromBase64Url(credential.getCredentialId());
-            return Optional.of(PublicKeyCredentialDescriptor.builder().id(credentialId).build());
+            PublicKeyCredentialDescriptor.PublicKeyCredentialDescriptorBuilder builder =
+                    PublicKeyCredentialDescriptor.builder().id(credentialId);
+
+            Set<AuthenticatorTransport> transports = parseTransports(credential.getTransports());
+            if (!transports.isEmpty()) {
+                builder.transports(transports);
+            }
+
+            return Optional.of(builder.build());
         } catch (Base64UrlException e) {
             return Optional.empty();
         }
+    }
+
+    private Set<AuthenticatorTransport> parseTransports(String transportsRaw) {
+        if (!StringUtils.hasText(transportsRaw)) {
+            return Collections.emptySet();
+        }
+
+        Set<AuthenticatorTransport> transports = new HashSet<>();
+        Arrays.stream(transportsRaw.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .forEach(value -> {
+                    try {
+                        // DB values are produced by AuthenticatorTransport::toString
+                        transports.add(AuthenticatorTransport.of(value));
+                    } catch (Exception ignored) {
+                        // Ignore invalid/legacy transport values to avoid breaking login options generation.
+                    }
+                });
+
+        return transports;
     }
 
     private ByteArray decodeBase64Url(String value) {
