@@ -34,6 +34,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -98,7 +99,7 @@ public class PasskeyService {
 
         Map<String, Object> response = new HashMap<>();
         response.put("requestId", requestId);
-        response.put("publicKey", registrationRequest);
+        response.put("publicKey", normalizePublicKeyOptions(registrationRequest));
         return response;
     }
 
@@ -203,8 +204,48 @@ public class PasskeyService {
 
         Map<String, Object> response = new HashMap<>();
         response.put("requestId", requestId);
-        response.put("publicKey", assertionRequest.getPublicKeyCredentialRequestOptions());
+        response.put("publicKey", normalizePublicKeyOptions(assertionRequest.getPublicKeyCredentialRequestOptions()));
         return response;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> normalizePublicKeyOptions(Object options) {
+        // Convert Yubico option objects to a plain Map and ensure transports are serialized as a sequence of strings
+        Map<String, Object> map = objectMapper.convertValue(options, Map.class);
+
+        Object allowObj = map.get("allowCredentials");
+        if (allowObj instanceof List) {
+            List<?> allowList = (List<?>) allowObj;
+            for (Object item : allowList) {
+                if (!(item instanceof Map)) continue;
+                Map<String, Object> desc = (Map<String, Object>) item;
+                Object transportsObj = desc.get("transports");
+                if (transportsObj == null) continue;
+
+                List<String> normalized;
+                if (transportsObj instanceof String) {
+                    String s = (String) transportsObj;
+                    normalized = Arrays.stream(s.split(","))
+                            .map(String::trim)
+                            .filter(t -> !t.isEmpty())
+                            .map(String::toLowerCase)
+                            .toList();
+                } else if (transportsObj instanceof List) {
+                    List<?> tlist = (List<?>) transportsObj;
+                    normalized = (List<String>) tlist.stream()
+                            .map(el -> el == null ? null : el.toString().toLowerCase())
+                            .filter(v -> v != null && !v.isEmpty())
+                            .toList();
+                } else {
+                    // Unknown shape - coerce to string
+                    normalized = List.of(transportsObj.toString().toLowerCase());
+                }
+
+                desc.put("transports", normalized);
+            }
+        }
+
+        return map;
     }
 
     public User verifyLogin(String requestId, JsonNode credentialNode) {
