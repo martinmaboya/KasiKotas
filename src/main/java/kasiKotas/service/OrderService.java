@@ -56,7 +56,10 @@ public class OrderService {
     private final BankDetailsService bankDetailsService;
     private final DailyOrderLimitService dailyOrderLimitService;
 
+
     private final ObjectMapper objectMapper;
+
+    private final OrderStatusWebSocketService orderStatusWebSocketService;
 
     @Value("${admin.email}")
     private String adminEmail;
@@ -73,7 +76,8 @@ public class OrderService {
             ProductService productService,
             BankDetailsService bankDetailsService,
             DailyOrderLimitService dailyOrderLimitService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            OrderStatusWebSocketService orderStatusWebSocketService) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.userRepository = userRepository;
@@ -85,6 +89,7 @@ public class OrderService {
         this.bankDetailsService = bankDetailsService;
         this.dailyOrderLimitService = dailyOrderLimitService;
         this.objectMapper = objectMapper;
+        this.orderStatusWebSocketService = orderStatusWebSocketService;
     }
 
     /**
@@ -481,11 +486,20 @@ public class OrderService {
      * @return An Optional containing the updated Order if found, or empty if not found.
      * @throws IllegalArgumentException if the new status is invalid.
      */
-    public Optional<Order> updateOrderStatus(Long orderId, Order.OrderStatus newStatus) { // Changed parameter type to Order.OrderStatus
+    public Optional<Order> updateOrderStatus(Long orderId, Order.OrderStatus newStatus) {
         return orderRepository.findById(orderId)
                 .map(order -> {
-                    order.setStatus(newStatus); // Use the directly provided enum
-                    return orderRepository.save(order);
+                    order.setStatus(newStatus);
+                    Order updatedOrder = orderRepository.save(order);
+                    // Emit WebSocket event for real-time update
+                    if (order.getUser() != null && order.getUser().getId() != null) {
+                        orderStatusWebSocketService.sendOrderStatusUpdate(
+                            order.getId(),
+                            newStatus.name(),
+                            order.getUser().getId()
+                        );
+                    }
+                    return updatedOrder;
                 });
     }
 
