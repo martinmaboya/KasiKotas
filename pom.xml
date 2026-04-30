@@ -161,11 +161,6 @@
                     <artifactId>webauthn-server-core</artifactId>
                     <version>2.6.0</version>
                 </dependency>
-                <!-- Spring Boot WebSocket Starter for real-time messaging -->
-                <dependency>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-websocket</artifactId>
-                </dependency>
             </dependencies>
 
             <build>
