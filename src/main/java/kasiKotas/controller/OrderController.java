@@ -179,29 +179,6 @@ public class OrderController {
             String deliveryMethod = (String) orderRequest.get("deliveryMethod");
             String promoCode = (String) orderRequest.get("promoCode");
 
-            // Extract financial data from frontend calculation
-            Double subtotal = null;
-            Double deliveryFee = null;
-            Double discountAmount = null;
-            Double totalAmount = null;
-
-            try {
-                if (orderRequest.get("subtotal") != null) {
-                    subtotal = ((Number) orderRequest.get("subtotal")).doubleValue();
-                }
-                if (orderRequest.get("deliveryFee") != null) {
-                    deliveryFee = ((Number) orderRequest.get("deliveryFee")).doubleValue();
-                }
-                if (orderRequest.get("discountAmount") != null) {
-                    discountAmount = ((Number) orderRequest.get("discountAmount")).doubleValue();
-                }
-                if (orderRequest.get("totalAmount") != null) {
-                    totalAmount = ((Number) orderRequest.get("totalAmount")).doubleValue();
-                }
-            } catch (Exception ex) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Invalid financial data format"));
-            }
-
             Object itemsRawObj = orderRequest.get("orderItems");
             if (itemsRawObj == null) {
                 return ResponseEntity.badRequest().body(Map.of("message", "Missing orderItems in order request"));
@@ -257,12 +234,9 @@ public class OrderController {
             newOrder.setDeliveryMethod(deliveryMethod);
             newOrder.setScheduledDeliveryTime(scheduledDeliveryTime);
 
-            // Set promo code and financial data from frontend
+            // Set promo code only — pricing is calculated server-side in OrderService
             newOrder.setPromoCode(promoCode);
-            newOrder.setSubtotal(subtotal);
-            newOrder.setDeliveryFee(deliveryFee);
-            newOrder.setDiscountAmount(discountAmount);
-            newOrder.setTotalAmount(totalAmount); // Use the calculated total from frontend
+            newOrder.setDeliveryMethod(deliveryMethod);
 
             List<OrderItem> orderItems = new ArrayList<>();
             for (Map<String, Object> itemRaw : itemsRaw) {

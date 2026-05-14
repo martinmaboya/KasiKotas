@@ -7,8 +7,6 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.core.type.TypeReference; // Added import for TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper; // Added import for ObjectMapper
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -110,85 +108,7 @@ public class Order {
         CANCELLED
     }
 
-    /**
-     * UPDATED: This method now preserves the totalAmount calculated by the frontend
-     * when promo codes are applied, rather than recalculating it.
-     *
-     * Only calculates totalAmount if it's not already set (for backward compatibility).
-     */
-    @PrePersist // Called before the entity is first persisted (inserted)
-    @PreUpdate  // Called before the entity is updated
-    public void calculateTotalAmount() {
-        // If totalAmount is already set (e.g., from frontend with promo code calculation),
-        // don't recalculate it to preserve promo code discounts
-        if (this.totalAmount != null && this.totalAmount > 0) {
-            System.out.println("Total amount already set: " + this.totalAmount + " (preserving frontend calculation)");
-            return;
-        }
-
-        // Only calculate if totalAmount is not set (backward compatibility)
-        if (orderItems == null) {
-            this.totalAmount = 0.0;
-            return;
-        }
-
-        double calculatedTotal = 0.0;
-        for (OrderItem item : orderItems) {
-            // Ensure priceAtTimeOfOrder is set before calculation
-            if (item.getPriceAtTimeOfOrder() != null && item.getQuantity() != null) {
-                calculatedTotal += item.getPriceAtTimeOfOrder() * item.getQuantity();
-            }
-
-            // Include extra prices in total
-            if (item.getSelectedExtrasJson() != null && !item.getSelectedExtrasJson().isEmpty()) {
-                try {
-                    // Using a new ObjectMapper here for simplicity within an entity method.
-                    // In a service, you would inject it.
-                    ObjectMapper mapper = new ObjectMapper();
-                    List<Extra> selectedExtras = mapper.readValue(item.getSelectedExtrasJson(), new TypeReference<List<Extra>>() {});
-                    for (Extra extra : selectedExtras) {
-                        calculatedTotal += (extra.getPrice() * item.getQuantity());
-                    }
-                } catch (Exception e) {
-                    System.err.println("Error calculating total with extras for order item: " + e.getMessage());
-                    // Log the error, but don't prevent total calculation
-                }
-            }
-            // Sauces are free, so no price addition for them here.
-            // We can explicitly check for selectedSaucesJson, though it won't impact total.
-            if (item.getSelectedSaucesJson() != null && !item.getSelectedSaucesJson().isEmpty()) {
-                try {
-                    ObjectMapper mapper = new ObjectMapper();
-                    // Just parsing to ensure it's valid JSON if needed for debugging, no price impact
-                    mapper.readValue(item.getSelectedSaucesJson(), new TypeReference<List<Sauce>>() {});
-                } catch (Exception e) {
-                    System.err.println("Error parsing selectedSaucesJson during total amount calculation for order item: " + e.getMessage());
-                }
-            }
-        }
-
-        this.totalAmount = calculatedTotal;
-        System.out.println("Calculated total amount: " + this.totalAmount + " (no promo code data provided)");
-    }
-
-    /**
-     * Helper method to check if this order has a promo code applied
-     */
     public boolean hasPromoCode() {
         return this.promoCode != null && !this.promoCode.trim().isEmpty();
-    }
-
-    /**
-     * Helper method to get the final total after all calculations
-     * (subtotal + delivery fee - discount)
-     */
-    public Double getCalculatedTotal() {
-        if (hasPromoCode() && subtotal != null) {
-            double total = (subtotal != null ? subtotal : 0.0) +
-                    (deliveryFee != null ? deliveryFee : 0.0) -
-                    (discountAmount != null ? discountAmount : 0.0);
-            return Math.max(0.0, total); // Ensure total is never negative
-        }
-        return this.totalAmount;
     }
 }

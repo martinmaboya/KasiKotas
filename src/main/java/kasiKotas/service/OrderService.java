@@ -2,6 +2,7 @@
 package kasiKotas.service;
 
 import kasiKotas.model.*;
+import kasiKotas.model.PromoCode;
 import kasiKotas.repository.OrderRepository;
 import kasiKotas.repository.OrderItemRepository;
 import kasiKotas.repository.UserRepository;
@@ -11,6 +12,7 @@ import kasiKotas.repository.ProductExtraRequirementRepository;
 // import kasiKotas.service.EmailService;
 import kasiKotas.service.ProductService;
 import kasiKotas.service.DailyOrderLimitService;
+import kasiKotas.service.PromoCodeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -55,6 +57,7 @@ public class OrderService {
     private final ProductService productService;
     private final BankDetailsService bankDetailsService;
     private final DailyOrderLimitService dailyOrderLimitService;
+    private final PromoCodeService promoCodeService;
 
     private final ObjectMapper objectMapper;
 
@@ -73,6 +76,7 @@ public class OrderService {
             ProductService productService,
             BankDetailsService bankDetailsService,
             DailyOrderLimitService dailyOrderLimitService,
+            PromoCodeService promoCodeService,
             ObjectMapper objectMapper) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
@@ -80,10 +84,10 @@ public class OrderService {
         this.productRepository = productRepository;
         this.extraRepository = extraRepository;
         this.productExtraRequirementRepository = productExtraRequirementRepository;
-        // this.emailService = emailService;
         this.productService = productService;
         this.bankDetailsService = bankDetailsService;
         this.dailyOrderLimitService = dailyOrderLimitService;
+        this.promoCodeService = promoCodeService;
         this.objectMapper = objectMapper;
     }
 
@@ -217,18 +221,52 @@ public class OrderService {
             }
         }
 
-        // 4. Use the total amount calculated by frontend (includes promo code discount)
-        // Don't recalculate - trust the frontend calculation that includes promo codes
-        System.out.println("Order created with promo code: " + order.getPromoCode());
-        System.out.println("Subtotal: " + order.getSubtotal());
-        System.out.println("Delivery Fee: " + order.getDeliveryFee());
-        System.out.println("Discount Amount: " + order.getDiscountAmount());
-        System.out.println("Final Total Amount: " + order.getTotalAmount());
-        
-        // CRITICAL: Ensure orderDate is set immediately before saving
-        LocalDateTime now = LocalDateTime.now();
-        order.setOrderDate(now);
-        System.out.println("Setting orderDate to: " + now);
+        // 4. Recalculate pricing server-side — never trust the frontend for financial data
+        double subtotal = order.getOrderItems().stream()
+                .mapToDouble(item -> item.getPriceAtTimeOfOrder() * item.getQuantity())
+                .sum();
+
+        // Add extras cost
+        for (OrderItem item : order.getOrderItems()) {
+            if (StringUtils.hasText(item.getSelectedExtrasJson())) {
+                try {
+                    List<Map<String, Object>> extras = objectMapper.readValue(
+                            item.getSelectedExtrasJson(), new TypeReference<List<Map<String, Object>>>() {});
+                    for (Map<String, Object> extra : extras) {
+                        Object priceVal = extra.get("price");
+                        Object qtyVal = extra.get("quantity");
+                        double extraPrice = priceVal instanceof Number ? ((Number) priceVal).doubleValue() : 0.0;
+                        int extraQty = qtyVal instanceof Number ? ((Number) qtyVal).intValue() : 1;
+                        subtotal += extraPrice * extraQty * item.getQuantity();
+                    }
+                } catch (Exception e) {
+                    // malformed extras JSON — skip extra pricing, stock was already validated above
+                }
+            }
+        }
+
+        double deliveryFee = "DELIVERY".equalsIgnoreCase(order.getDeliveryMethod()) ? 5.0 : 0.0;
+        double discountAmount = 0.0;
+
+        if (StringUtils.hasText(order.getPromoCode())) {
+            try {
+                PromoCode promo = promoCodeService.validatePromoCode(order.getPromoCode(), subtotal);
+                discountAmount = promo.isPercentageDiscount()
+                        ? subtotal * (promo.getDiscountAmount() / 100.0)
+                        : promo.getDiscountAmount();
+                discountAmount = Math.min(discountAmount, subtotal);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid promo code: " + e.getMessage());
+            }
+        }
+
+        double totalAmount = Math.max(0.0, subtotal + deliveryFee - discountAmount);
+        order.setSubtotal(subtotal);
+        order.setDeliveryFee(deliveryFee);
+        order.setDiscountAmount(discountAmount);
+        order.setTotalAmount(totalAmount);
+
+        order.setOrderDate(LocalDateTime.now());
 
         Order savedOrder = orderRepository.save(order);
         System.out.println("Saved order ID: " + savedOrder.getId() + ", orderDate after save: " + savedOrder.getOrderDate());
