@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDateTime;
@@ -57,10 +58,35 @@ public class Order {
     private String paymentMethod; // e.g., "cod", "eft"
 
     // EFT orders store the bank account selected at order creation time.
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "eft_bank_details_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private BankDetails eftBankDetails;
+
+    @JsonIgnore
+    @Column(name = "eft_bank_details_id", insertable = false, updatable = false)
+    private Long eftBankDetailsId;
+
+    @JsonIgnore
+    @Column(name = "eft_bank_name")
+    private String eftBankName;
+
+    @JsonIgnore
+    @Column(name = "eft_account_name")
+    private String eftAccountName;
+
+    @JsonIgnore
+    @Column(name = "eft_account_number")
+    private String eftAccountNumber;
+
+    @JsonIgnore
+    @Column(name = "eft_shap_id")
+    private String eftShapId;
+
+    @JsonIgnore
+    @Column(name = "eft_branch_code")
+    private String eftBranchCode;
 
     // Field for delivery method (e.g., "DELIVERY", "COLLECTION")
     @Column
@@ -110,5 +136,53 @@ public class Order {
 
     public boolean hasPromoCode() {
         return this.promoCode != null && !this.promoCode.trim().isEmpty();
+    }
+
+    public BankDetails getEftBankDetails() {
+        if (!hasEftBankDetailsSnapshot()) {
+            return null;
+        }
+
+        Long bankDetailsId = this.eftBankDetailsId;
+        if (bankDetailsId == null && this.eftBankDetails != null) {
+            bankDetailsId = this.eftBankDetails.getId();
+        }
+
+        return BankDetails.builder()
+                .id(bankDetailsId)
+                .bankName(this.eftBankName)
+                .accountName(this.eftAccountName)
+                .accountNumber(this.eftAccountNumber)
+                .shapId(this.eftShapId)
+                .branchCode(this.eftBranchCode)
+                .build();
+    }
+
+    public void setEftBankDetails(BankDetails eftBankDetails) {
+        this.eftBankDetails = eftBankDetails;
+        if (eftBankDetails == null) {
+            this.eftBankDetailsId = null;
+            this.eftBankName = null;
+            this.eftAccountName = null;
+            this.eftAccountNumber = null;
+            this.eftShapId = null;
+            this.eftBranchCode = null;
+            return;
+        }
+
+        this.eftBankDetailsId = eftBankDetails.getId();
+        this.eftBankName = eftBankDetails.getBankName();
+        this.eftAccountName = eftBankDetails.getAccountName();
+        this.eftAccountNumber = eftBankDetails.getAccountNumber();
+        this.eftShapId = eftBankDetails.getShapId();
+        this.eftBranchCode = eftBankDetails.getBranchCode();
+    }
+
+    private boolean hasEftBankDetailsSnapshot() {
+        return eftBankName != null
+                || eftAccountName != null
+                || eftAccountNumber != null
+                || eftShapId != null
+                || eftBranchCode != null;
     }
 }

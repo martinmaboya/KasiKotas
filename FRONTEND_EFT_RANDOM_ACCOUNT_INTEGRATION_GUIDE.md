@@ -7,7 +7,7 @@ This guide explains how the frontend should work now that the backend supports *
 When a customer chooses `EFT`:
 - The frontend sends the order normally.
 - The backend randomly selects one configured bank account.
-- The selected account is saved on that order (`eftBankDetails`).
+- The selected account is copied into the order as an immutable snapshot and exposed as `eftBankDetails`.
 - The frontend must display the bank details from the **created order response** (and later from order fetch APIs), not from a separate static source.
 
 ---
@@ -26,6 +26,7 @@ When a customer chooses `EFT`:
 - `POST /api/bank-details` - admin create/update account
 
 > Important: for payment instructions after checkout, prefer `order.eftBankDetails` from the order response.
+> This nested object is now snapshot-backed, so edits to the admin bank configuration do not change previously placed orders.
 
 ---
 

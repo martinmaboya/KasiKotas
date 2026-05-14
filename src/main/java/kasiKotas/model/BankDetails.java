@@ -44,5 +44,8 @@ public class BankDetails {
     @Column(nullable = false)
     private String branchCode;
 
+    @Version
+    private Long version;
+
     // Additional fields if necessary, e.g., swift code, physical address of bank
 }

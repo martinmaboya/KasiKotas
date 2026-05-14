@@ -1,12 +1,17 @@
 package kasiKotas.controller;
 
 import kasiKotas.model.BankDetails;
+import kasiKotas.model.BankDetailsAudit;
 import kasiKotas.service.BankDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
  * REST Controller for managing business banking details.
@@ -15,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/bank-details")
 public class BankDetailsController {
+
+    private static final Logger log = LoggerFactory.getLogger(BankDetailsController.class);
 
     private final BankDetailsService bankDetailsService;
 
@@ -60,12 +67,18 @@ public class BankDetailsController {
             BankDetails savedDetails = bankDetailsService.saveOrUpdateBankDetails(bankDetails);
             return ResponseEntity.ok(savedDetails);
         } catch (IllegalArgumentException e) {
-            System.err.println("Error saving/updating bank details: " + e.getMessage());
+            log.warn("Error saving/updating bank details: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
-            System.err.println("An unexpected error occurred: " + e.getMessage());
+            log.error("An unexpected error occurred while saving/updating bank details", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/audit")
+    public ResponseEntity<List<BankDetailsAudit>> getAuditHistory() {
+        return ResponseEntity.ok(bankDetailsService.getAuditHistory());
     }
 
     // Optional: Add a DELETE endpoint if needed, also protected by ADMIN role.

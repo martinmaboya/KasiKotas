@@ -10,9 +10,6 @@ import kasiKotas.repository.ProductRepository;
 import kasiKotas.repository.ExtraRepository;
 import kasiKotas.repository.ProductExtraRequirementRepository;
 // import kasiKotas.service.EmailService;
-import kasiKotas.service.ProductService;
-import kasiKotas.service.DailyOrderLimitService;
-import kasiKotas.service.PromoCodeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -28,8 +25,6 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import jakarta.mail.MessagingException;
 
 /**
  * Service layer for managing Order related business logic.
@@ -394,7 +389,6 @@ public class OrderService {
         List<Order> orders = orderRepository.findByUser(user);
 
         orders.forEach(order -> {
-            initializeEftBankDetails(order);
             if (order.getOrderItems() != null) {
                 order.getOrderItems().size();
                 order.getOrderItems().forEach(orderItem -> {
@@ -430,7 +424,6 @@ public class OrderService {
         
         // Still need to process JSON fields for extras and sauces since they can't be fetched with JOIN
         orders.forEach(order -> {
-            initializeEftBankDetails(order);
             if (order.getOrderItems() != null) {
                 order.getOrderItems().forEach(orderItem -> {
                     if (StringUtils.hasText(orderItem.getSelectedExtrasJson())) {
@@ -454,7 +447,6 @@ public class OrderService {
     public List<Order> getAllOrders() {
         List<Order> orders = orderRepository.findAll();
         orders.forEach(order -> {
-            initializeEftBankDetails(order);
             if (order.getUser() != null) {
                 order.getUser().getFirstName();
                 order.getUser().getLastName();
@@ -488,7 +480,6 @@ public class OrderService {
     public Optional<Order> getOrderById(Long orderId) {
         Optional<Order> orderOptional = orderRepository.findById(orderId);
         orderOptional.ifPresent(order -> {
-            initializeEftBankDetails(order);
             if (order.getUser() != null) {
                 order.getUser().getFirstName();
                 order.getUser().getLastName();
@@ -575,16 +566,5 @@ public class OrderService {
 
         System.out.println("[DailyLimit] Total kotas ordered today (" + startOfDay + " to " + endOfDay + "): " + todaysTotal);
         return todaysTotal;
-    }
-
-    private void initializeEftBankDetails(Order order) {
-        if (order.getEftBankDetails() != null) {
-            order.getEftBankDetails().getId();
-            order.getEftBankDetails().getBankName();
-            order.getEftBankDetails().getAccountName();
-            order.getEftBankDetails().getAccountNumber();
-            order.getEftBankDetails().getBranchCode();
-            order.getEftBankDetails().getShapId();
-        }
     }
 }
