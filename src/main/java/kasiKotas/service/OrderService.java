@@ -50,7 +50,7 @@ public class OrderService {
     private final ProductExtraRequirementRepository productExtraRequirementRepository;
     // private final EmailService emailService;
     private final ProductService productService;
-    private final BankDetailsService bankDetailsService;
+    private final BankDetailsService bankDetailsService; // Keep this for other potential uses, but not for setting EFT details in createOrder
     private final DailyOrderLimitService dailyOrderLimitService;
     private final PromoCodeService promoCodeService;
 
@@ -140,11 +140,17 @@ public class OrderService {
         order.setStatus(Order.OrderStatus.PENDING);
         System.out.println("Initial orderDate set to: " + orderDateTime);
 
+        // --- FIX START ---
+        // If EFT is the payment method, ensure that eftBankDetails are present.
+        // The controller is now responsible for setting these from the request.
         if ("eft".equalsIgnoreCase(order.getPaymentMethod())) {
-            BankDetails selectedEftAccount = bankDetailsService.getRandomEftBankDetails()
-                    .orElseThrow(() -> new IllegalArgumentException("No EFT bank details configured yet."));
-            order.setEftBankDetails(selectedEftAccount);
+            if (order.getEftBankDetails() == null || !order.getEftBankDetails().isValid()) {
+                throw new IllegalArgumentException("EFT payment selected, but assigned bank details are unavailable or invalid.");
+            }
+            // No need to fetch random bank details; use the ones already set by the controller.
+            // The setEftBankDetails method in the Order model will handle populating the snapshot fields.
         }
+        // --- FIX END ---
 
         // 3. Process Order Items and validate stock
         if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
