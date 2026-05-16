@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import org.springframework.util.StringUtils;
 
 /**
  * Represents the banking details for the business,
@@ -48,4 +49,15 @@ public class BankDetails {
     private Long version;
 
     // Additional fields if necessary, e.g., swift code, physical address of bank
+
+    /**
+     * Checks if the essential bank details are valid (not null or empty).
+     * @return true if essential details are valid, false otherwise.
+     */
+    public boolean isValid() {
+        return StringUtils.hasText(this.bankName) &&
+               StringUtils.hasText(this.accountName) &&
+               StringUtils.hasText(this.accountNumber) &&
+               StringUtils.hasText(this.branchCode);
+    }
 }
