@@ -60,31 +60,27 @@ public class Order {
     // EFT orders store the bank account selected at order creation time.
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "eft_bank_details_id")
+    @JoinColumn(name = "eft_bank_details_id", insertable = false, updatable = false) // Make sure this is correct
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private BankDetails eftBankDetails;
 
-    @JsonIgnore
-    @Column(name = "eft_bank_details_id", insertable = false, updatable = false)
+    // These fields are snapshots of the bank details at the time of order creation
+    // They should be included in the JSON response, so @JsonIgnore is removed.
+    @Column(name = "eft_bank_details_id")
     private Long eftBankDetailsId;
 
-    @JsonIgnore
     @Column(name = "eft_bank_name")
     private String eftBankName;
 
-    @JsonIgnore
     @Column(name = "eft_account_name")
     private String eftAccountName;
 
-    @JsonIgnore
     @Column(name = "eft_account_number")
     private String eftAccountNumber;
 
-    @JsonIgnore
     @Column(name = "eft_shap_id")
     private String eftShapId;
 
-    @JsonIgnore
     @Column(name = "eft_branch_code")
     private String eftBranchCode;
 
@@ -138,18 +134,14 @@ public class Order {
         return this.promoCode != null && !this.promoCode.trim().isEmpty();
     }
 
+    // Custom getter for eftBankDetails to reconstruct the object from snapshot fields
     public BankDetails getEftBankDetails() {
         if (!hasEftBankDetailsSnapshot()) {
             return null;
         }
 
-        Long bankDetailsId = this.eftBankDetailsId;
-        if (bankDetailsId == null && this.eftBankDetails != null) {
-            bankDetailsId = this.eftBankDetails.getId();
-        }
-
         return BankDetails.builder()
-                .id(bankDetailsId)
+                .id(this.eftBankDetailsId) // Use the snapshot ID
                 .bankName(this.eftBankName)
                 .accountName(this.eftAccountName)
                 .accountNumber(this.eftAccountNumber)
@@ -158,8 +150,11 @@ public class Order {
                 .build();
     }
 
+    // Custom setter for eftBankDetails to populate snapshot fields
     public void setEftBankDetails(BankDetails eftBankDetails) {
-        this.eftBankDetails = eftBankDetails;
+        // Ensure the ManyToOne relationship is also set if needed, though for snapshots it's less critical
+        this.eftBankDetails = eftBankDetails; 
+
         if (eftBankDetails == null) {
             this.eftBankDetailsId = null;
             this.eftBankName = null;
