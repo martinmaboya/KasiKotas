@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.springframework.util.StringUtils; // Added for isValid() in BankDetails
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -58,11 +59,14 @@ public class Order {
     private String paymentMethod; // e.g., "cod", "eft"
 
     // EFT orders store the bank account selected at order creation time.
-    @JsonIgnore
+    // This ManyToOne relationship is for linking to an existing BankDetails entity.
+    // The insertable/updatable = false means Hibernate won't manage the eft_bank_details_id column via this relationship.
+    // It expects the column to be managed separately (e.g., via the eftBankDetailsId field below).
+    @JsonIgnore // Still ignore this to prevent serialization issues and rely on custom getter
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "eft_bank_details_id", insertable = false, updatable = false) // Make sure this is correct
+    @JoinColumn(name = "eft_bank_details_id", insertable = false, updatable = false)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    private BankDetails eftBankDetails;
+    private BankDetails eftBankDetails; // This field will be populated by Hibernate on load if eftBankDetailsId is set
 
     // These fields are snapshots of the bank details at the time of order creation
     // They should be included in the JSON response, so @JsonIgnore is removed.
@@ -152,8 +156,11 @@ public class Order {
 
     // Custom setter for eftBankDetails to populate snapshot fields
     public void setEftBankDetails(BankDetails eftBankDetails) {
-        // Ensure the ManyToOne relationship is also set if needed, though for snapshots it's less critical
-        this.eftBankDetails = eftBankDetails; 
+        // IMPORTANT: Do NOT set the ManyToOne 'this.eftBankDetails' field here directly
+        // if the incoming eftBankDetails is a transient object.
+        // This setter is primarily for populating the snapshot fields.
+        // The ManyToOne 'eftBankDetails' field will be managed by Hibernate on load,
+        // or explicitly set in the service layer if a managed BankDetails entity is fetched.
 
         if (eftBankDetails == null) {
             this.eftBankDetailsId = null;
@@ -162,6 +169,7 @@ public class Order {
             this.eftAccountNumber = null;
             this.eftShapId = null;
             this.eftBranchCode = null;
+            this.eftBankDetails = null; // Also clear the ManyToOne relationship
             return;
         }
 
