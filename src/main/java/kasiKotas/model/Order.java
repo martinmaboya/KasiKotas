@@ -140,6 +140,14 @@ public class Order {
 
     // Custom getter for eftBankDetails to reconstruct the object from snapshot fields
     public BankDetails getEftBankDetails() {
+        System.out.println("Order.getEftBankDetails() called. Snapshot fields: " +
+                "ID=" + this.eftBankDetailsId +
+                ", BankName=" + this.eftBankName +
+                ", AccountName=" + this.eftAccountName +
+                ", AccountNumber=" + this.eftAccountNumber +
+                ", ShapId=" + this.eftShapId +
+                ", BranchCode=" + this.eftBranchCode); // LOGGING ADDED
+
         if (!hasEftBankDetailsSnapshot()) {
             return null;
         }
@@ -156,12 +164,6 @@ public class Order {
 
     // Custom setter for eftBankDetails to populate snapshot fields
     public void setEftBankDetails(BankDetails eftBankDetails) {
-        // IMPORTANT: Do NOT set the ManyToOne 'this.eftBankDetails' field here directly
-        // if the incoming eftBankDetails is a transient object.
-        // This setter is primarily for populating the snapshot fields.
-        // The ManyToOne 'eftBankDetails' field will be managed by Hibernate on load,
-        // or explicitly set in the service layer if a managed BankDetails entity is fetched.
-
         if (eftBankDetails == null) {
             this.eftBankDetailsId = null;
             this.eftBankName = null;
@@ -170,6 +172,7 @@ public class Order {
             this.eftShapId = null;
             this.eftBranchCode = null;
             this.eftBankDetails = null; // Also clear the ManyToOne relationship
+            System.out.println("Order.setEftBankDetails() called with null. All snapshot fields cleared."); // LOGGING ADDED
             return;
         }
 
@@ -179,6 +182,14 @@ public class Order {
         this.eftAccountNumber = eftBankDetails.getAccountNumber();
         this.eftShapId = eftBankDetails.getShapId();
         this.eftBranchCode = eftBankDetails.getBranchCode();
+
+        System.out.println("Order.setEftBankDetails() called. Snapshot fields set to: " +
+                "ID=" + this.eftBankDetailsId +
+                ", BankName=" + this.eftBankName +
+                ", AccountName=" + this.eftAccountName +
+                ", AccountNumber=" + this.eftAccountNumber +
+                ", ShapId=" + this.eftShapId +
+                ", BranchCode=" + this.eftBranchCode); // LOGGING ADDED
     }
 
     private boolean hasEftBankDetailsSnapshot() {

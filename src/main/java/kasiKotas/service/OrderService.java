@@ -145,8 +145,10 @@ public class OrderService {
         // The controller is now responsible for setting these from the request.
         if ("eft".equalsIgnoreCase(order.getPaymentMethod())) {
             if (order.getEftBankDetails() == null || !order.getEftBankDetails().isValid()) {
+                System.err.println("OrderService: EFT payment selected, but bank details are missing or invalid during createOrder. Details: " + order.getEftBankDetails()); // LOGGING ADDED
                 throw new IllegalArgumentException("EFT payment selected, but assigned bank details are unavailable or invalid.");
             }
+            System.out.println("OrderService: EFT Bank Details received for saving: " + order.getEftBankDetails()); // LOGGING ADDED
             // No need to fetch random bank details; use the ones already set by the controller.
             // The setEftBankDetails method in the Order model will handle populating the snapshot fields.
         }
@@ -270,7 +272,8 @@ public class OrderService {
         order.setOrderDate(LocalDateTime.now());
 
         Order savedOrder = orderRepository.save(order);
-        System.out.println("Saved order ID: " + savedOrder.getId() + ", orderDate after save: " + savedOrder.getOrderDate());
+        System.out.println("OrderService: Saved order ID: " + savedOrder.getId() + ", orderDate after save: " + savedOrder.getOrderDate());
+        System.out.println("OrderService: EFT Bank Details after saving: " + savedOrder.getEftBankDetails()); // LOGGING ADDED
 
         order.getOrderItems().forEach(item -> item.setOrder(savedOrder));
         orderItemRepository.saveAll(order.getOrderItems());
@@ -409,6 +412,7 @@ public class OrderService {
                     }
                 });
             }
+            System.out.println("OrderService: Retrieved Order ID " + order.getId() + ". EFT Bank Details: " + order.getEftBankDetails()); // LOGGING ADDED
         });
         return orders;
     }
@@ -440,6 +444,7 @@ public class OrderService {
                     }
                 });
             }
+            System.out.println("OrderService: Retrieved (Optimized) Order ID " + order.getId() + ". EFT Bank Details: " + order.getEftBankDetails()); // LOGGING ADDED
         });
         return orders;
     }
@@ -472,6 +477,7 @@ public class OrderService {
                     }
                 });
             }
+            System.out.println("OrderService: Retrieved (All) Order ID " + order.getId() + ". EFT Bank Details: " + order.getEftBankDetails()); // LOGGING ADDED
         });
         return orders;
     }
@@ -505,6 +511,7 @@ public class OrderService {
                     }
                 });
             }
+            System.out.println("OrderService: Retrieved (Single) Order ID " + order.getId() + ". EFT Bank Details: " + order.getEftBankDetails()); // LOGGING ADDED
         });
         return orderOptional;
     }

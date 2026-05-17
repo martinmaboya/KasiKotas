@@ -241,6 +241,7 @@ public class OrderController {
             // Handle EFT bank details if payment method is EFT
             if ("EFT".equalsIgnoreCase(paymentMethod)) {
                 Map<String, Object> eftBankDetailsMap = (Map<String, Object>) orderRequest.get("eftBankDetails");
+                System.out.println("OrderController: Received eftBankDetailsMap: " + eftBankDetailsMap); // LOGGING ADDED
                 if (eftBankDetailsMap != null) {
                     BankDetails eftBankDetails = BankDetails.builder()
                             .bankName((String) eftBankDetailsMap.get("bankName"))
