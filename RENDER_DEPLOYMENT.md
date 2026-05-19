@@ -31,7 +31,19 @@ MAIL_PASSWORD=xicrwhfsdvoltvrv
 
 # Admin Email
 ADMIN_EMAIL=m.maboya@yahoo.com
+
+# Bank Details Encryption (required for EFT bank-details protection)
+# Use a Base64-encoded 32-byte key in production
+BANK_ENCRYPTION_KEY=<your-generated-base64-256-bit-key>
 ```
+
+### Generate a key locally
+
+```powershell
+$bytes = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes); [Convert]::ToBase64String($bytes)
+```
+
+Copy the output and paste it into Render as `BANK_ENCRYPTION_KEY`.
 
 ---
 

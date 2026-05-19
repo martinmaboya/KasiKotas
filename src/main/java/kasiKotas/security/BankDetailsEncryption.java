@@ -6,6 +6,7 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.security.MessageDigest;
 
@@ -23,21 +24,41 @@ import java.security.MessageDigest;
 public class BankDetailsEncryption {
 
     private static final String ALGORITHM = "AES";
-    private static final int KEY_SIZE = 256;
+    private static final int KEY_SIZE_BYTES = 32;
     private final SecretKey encryptionKey;
 
     public BankDetailsEncryption(@Value("${app.security.bank-encryption-key}") String keyString) {
         try {
-            // Decode the Base64-encoded encryption key from environment
-            byte[] decodedKey = Base64.getDecoder().decode(keyString);
-            
-            if (decodedKey.length != 32) { // 256 bits = 32 bytes
-                throw new IllegalArgumentException("Encryption key must be 256 bits (32 bytes). Received: " + decodedKey.length + " bytes");
-            }
-            
-            this.encryptionKey = new SecretKeySpec(decodedKey, 0, decodedKey.length, ALGORITHM);
+            this.encryptionKey = new SecretKeySpec(resolveKeyBytes(keyString), ALGORITHM);
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Failed to initialize bank details encryption key: " + e.getMessage(), e);
+        }
+    }
+
+    private byte[] resolveKeyBytes(String keyString) {
+        if (keyString == null || keyString.isBlank()) {
+            throw new IllegalArgumentException("Encryption key must not be blank.");
+        }
+
+        String trimmed = keyString.trim();
+
+        try {
+            byte[] decodedKey = Base64.getDecoder().decode(trimmed);
+            if (decodedKey.length == KEY_SIZE_BYTES) {
+                return decodedKey;
+            }
+            return sha256(decodedKey);
+        } catch (IllegalArgumentException ex) {
+            return sha256(trimmed.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    private byte[] sha256(byte[] input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(input);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to derive encryption key: " + e.getMessage(), e);
         }
     }
 
@@ -55,7 +76,7 @@ public class BankDetailsEncryption {
         try {
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(Cipher.ENCRYPT_MODE, encryptionKey);
-            byte[] encryptedBytes = cipher.doFinal(plaintext.getBytes());
+            byte[] encryptedBytes = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(encryptedBytes);
         } catch (Exception e) {
             throw new RuntimeException("Failed to encrypt bank details: " + e.getMessage(), e);
@@ -78,7 +99,7 @@ public class BankDetailsEncryption {
             cipher.init(Cipher.DECRYPT_MODE, encryptionKey);
             byte[] encryptedBytes = Base64.getDecoder().decode(encryptedData);
             byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
-            return new String(decryptedBytes);
+            return new String(decryptedBytes, StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new RuntimeException("Failed to decrypt bank details. Data may be corrupted or tampered with: " + e.getMessage(), e);
         }
@@ -97,7 +118,7 @@ public class BankDetailsEncryption {
         
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(data.getBytes());
+            byte[] hashBytes = digest.digest(data.getBytes(StandardCharsets.UTF_8));
             
             // Convert bytes to hex string
             StringBuilder hexString = new StringBuilder();

@@ -314,7 +314,7 @@ public class BankDetailsService {
 
     private String toJson(BankDetails bankDetails) {
         try {
-            return objectMapper.writeValueAsString(bankDetails);
+            return objectMapper.copy().findAndRegisterModules().writeValueAsString(bankDetails);
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to serialize bank details audit snapshot.", ex);
         }

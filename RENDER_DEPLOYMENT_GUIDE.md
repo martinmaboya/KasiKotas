@@ -40,6 +40,7 @@ Your deployment is failing because the application can't connect to a MySQL data
 DATABASE_URL = jdbc:mysql://your-mysql-host:3306/kasikotas_db?useSSL=true&serverTimezone=UTC
 DB_USERNAME = your_mysql_username
 DB_PASSWORD = your_mysql_password
+BANK_ENCRYPTION_KEY = your_base64_32_byte_key
 ```
 
 **Example with Railway**:
