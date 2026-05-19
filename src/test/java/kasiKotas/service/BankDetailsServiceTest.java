@@ -5,6 +5,7 @@ import kasiKotas.model.BankDetails;
 import kasiKotas.model.BankDetailsAudit;
 import kasiKotas.repository.BankDetailsAuditRepository;
 import kasiKotas.repository.BankDetailsRepository;
+import kasiKotas.security.BankDetailsEncryption;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +36,9 @@ class BankDetailsServiceTest {
     @Mock
     private BankDetailsAuditRepository bankDetailsAuditRepository;
 
+    @Mock
+    private BankDetailsEncryption bankDetailsEncryption;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @AfterEach
@@ -44,11 +48,12 @@ class BankDetailsServiceTest {
 
     @Test
     void getRandomEftBankDetailsReturnsConfiguredAccount() {
-        BankDetailsService service = new BankDetailsService(bankDetailsRepository, bankDetailsAuditRepository, objectMapper);
+        BankDetailsService service = new BankDetailsService(bankDetailsRepository, bankDetailsAuditRepository, bankDetailsEncryption, objectMapper);
         BankDetails first = buildDetails(1L, "111111");
         BankDetails second = buildDetails(2L, "222222");
 
         when(bankDetailsRepository.findAll()).thenReturn(List.of(first, second));
+        when(bankDetailsEncryption.verifyChecksum(any(), any())).thenReturn(true);
 
         for (int i = 0; i < 20; i++) {
             Optional<BankDetails> selected = service.getRandomEftBankDetails();
@@ -59,9 +64,10 @@ class BankDetailsServiceTest {
 
     @Test
     void saveOrUpdateBankDetailsRejectsThirdAccount() {
-        BankDetailsService service = new BankDetailsService(bankDetailsRepository, bankDetailsAuditRepository, objectMapper);
+        BankDetailsService service = new BankDetailsService(bankDetailsRepository, bankDetailsAuditRepository, bankDetailsEncryption, objectMapper);
         BankDetails newAccount = buildDetails(null, "333333");
 
+        authenticateAsAdmin();
         when(bankDetailsRepository.findByAccountNumber("333333")).thenReturn(Optional.empty());
         when(bankDetailsRepository.count()).thenReturn(2L);
 
@@ -75,13 +81,14 @@ class BankDetailsServiceTest {
 
     @Test
     void saveOrUpdateBankDetailsCreatesAuditEntryForNewAccount() {
-        BankDetailsService service = new BankDetailsService(bankDetailsRepository, bankDetailsAuditRepository, objectMapper);
+        BankDetailsService service = new BankDetailsService(bankDetailsRepository, bankDetailsAuditRepository, bankDetailsEncryption, objectMapper);
         authenticateAsAdmin();
 
         BankDetails newAccount = buildDetails(null, "333333");
 
         when(bankDetailsRepository.findByAccountNumber("333333")).thenReturn(Optional.empty());
         when(bankDetailsRepository.count()).thenReturn(0L);
+        when(bankDetailsEncryption.generateChecksum(any())).thenReturn("checksum");
         when(bankDetailsRepository.save(any(BankDetails.class))).thenAnswer(invocation -> {
             BankDetails saved = invocation.getArgument(0);
             saved.setId(10L);
@@ -104,7 +111,7 @@ class BankDetailsServiceTest {
 
     @Test
     void saveOrUpdateBankDetailsCreatesAuditEntryForUpdate() {
-        BankDetailsService service = new BankDetailsService(bankDetailsRepository, bankDetailsAuditRepository, objectMapper);
+        BankDetailsService service = new BankDetailsService(bankDetailsRepository, bankDetailsAuditRepository, bankDetailsEncryption, objectMapper);
         authenticateAsAdmin();
 
         BankDetails existing = buildDetails(5L, "111111");
@@ -112,6 +119,7 @@ class BankDetailsServiceTest {
 
         when(bankDetailsRepository.findById(5L)).thenReturn(Optional.of(existing));
         when(bankDetailsRepository.findByAccountNumber("222222")).thenReturn(Optional.empty());
+        when(bankDetailsEncryption.generateChecksum(any())).thenReturn("checksum");
         when(bankDetailsRepository.save(any(BankDetails.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(bankDetailsAuditRepository.save(any(BankDetailsAudit.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -131,7 +139,7 @@ class BankDetailsServiceTest {
 
     @Test
     void getAuditHistoryReturnsNewestFirst() {
-        BankDetailsService service = new BankDetailsService(bankDetailsRepository, bankDetailsAuditRepository, objectMapper);
+        BankDetailsService service = new BankDetailsService(bankDetailsRepository, bankDetailsAuditRepository, bankDetailsEncryption, objectMapper);
         when(bankDetailsAuditRepository.findAllByOrderByChangedAtDesc()).thenReturn(List.of(
                 BankDetailsAudit.builder().id(2L).action(BankDetailsAudit.AuditAction.UPDATE).actorUsername("admin").build(),
                 BankDetailsAudit.builder().id(1L).action(BankDetailsAudit.AuditAction.CREATE).actorUsername("admin").build()

@@ -45,6 +45,23 @@ public class BankDetails {
     @Column(nullable = false)
     private String branchCode;
 
+    // Security: Checksums for detecting tampering
+    @Column(name = "account_number_checksum")
+    private String accountNumberChecksum; // SHA-256 hash of account number for tamper detection
+
+    @Column(name = "account_name_checksum")
+    private String accountNameChecksum; // SHA-256 hash of account name for tamper detection
+
+    @Column(name = "bank_name_checksum")
+    private String bankNameChecksum; // SHA-256 hash of bank name for tamper detection
+
+    // Security: Last verified timestamp
+    @Column(name = "last_verified_at")
+    private java.time.LocalDateTime lastVerifiedAt;
+
+    @Column(name = "is_archived")
+    private Boolean isArchived = false; // Soft-delete flag to preserve audit trail
+
     @Version
     private Long version;
 
