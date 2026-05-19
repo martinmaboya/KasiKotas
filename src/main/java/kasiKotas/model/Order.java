@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import org.springframework.util.StringUtils; // Added for isValid() in BankDetails
 
 import java.time.LocalDateTime;
@@ -139,6 +141,8 @@ public class Order {
     }
 
     // Custom getter for eftBankDetails to reconstruct the object from snapshot fields
+    @JsonProperty("eftBankDetails")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public BankDetails getEftBankDetails() {
         System.out.println("Order.getEftBankDetails() called. Snapshot fields: " +
                 "ID=" + this.eftBankDetailsId +
