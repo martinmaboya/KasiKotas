@@ -140,19 +140,16 @@ public class OrderService {
         order.setStatus(Order.OrderStatus.PENDING);
         System.out.println("Initial orderDate set to: " + orderDateTime);
 
-        // --- FIX START ---
-        // If EFT is the payment method, ensure that eftBankDetails are present.
-        // The controller is now responsible for setting these from the request.
+        // If EFT is the payment method, assign a current bank-details snapshot on the server.
+        // Never depend on the frontend to supply bank details for order creation.
         if ("eft".equalsIgnoreCase(order.getPaymentMethod())) {
             if (order.getEftBankDetails() == null || !order.getEftBankDetails().isValid()) {
-                System.err.println("OrderService: EFT payment selected, but bank details are missing or invalid during createOrder. Details: " + order.getEftBankDetails()); // LOGGING ADDED
-                throw new IllegalArgumentException("EFT payment selected, but assigned bank details are unavailable or invalid.");
+                BankDetails assignedBankDetails = bankDetailsService.getRandomEftBankDetails()
+                        .orElseThrow(() -> new IllegalArgumentException("EFT payment selected, but bank details are unavailable."));
+                order.setEftBankDetails(assignedBankDetails);
             }
-            System.out.println("OrderService: EFT Bank Details received for saving: " + order.getEftBankDetails()); // LOGGING ADDED
-            // No need to fetch random bank details; use the ones already set by the controller.
-            // The setEftBankDetails method in the Order model will handle populating the snapshot fields.
+            System.out.println("OrderService: EFT Bank Details selected for saving: " + order.getEftBankDetails());
         }
-        // --- FIX END ---
 
         // 3. Process Order Items and validate stock
         if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {

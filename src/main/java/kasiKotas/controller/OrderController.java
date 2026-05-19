@@ -238,24 +238,8 @@ public class OrderController {
             newOrder.setPromoCode(promoCode);
             newOrder.setDeliveryMethod(deliveryMethod);
 
-            // Handle EFT bank details if payment method is EFT
-            if ("EFT".equalsIgnoreCase(paymentMethod)) {
-                Map<String, Object> eftBankDetailsMap = (Map<String, Object>) orderRequest.get("eftBankDetails");
-                System.out.println("OrderController: Received eftBankDetailsMap: " + eftBankDetailsMap); // LOGGING ADDED
-                if (eftBankDetailsMap != null) {
-                    BankDetails eftBankDetails = BankDetails.builder()
-                            .bankName((String) eftBankDetailsMap.get("bankName"))
-                            .accountName((String) eftBankDetailsMap.get("accountName"))
-                            .accountNumber((String) eftBankDetailsMap.get("accountNumber"))
-                            .shapId((String) eftBankDetailsMap.get("shapId"))
-                            .branchCode((String) eftBankDetailsMap.get("branchCode"))
-                            .build();
-                    newOrder.setEftBankDetails(eftBankDetails);
-                } else {
-                    // Optionally, return an error if EFT is selected but details are missing
-                    return ResponseEntity.badRequest().body(Map.of("message", "EFT payment selected, but bank details are missing."));
-                }
-            }
+            // EFT bank details are now assigned server-side in OrderService.
+            // The frontend should not send or control the bank-details snapshot.
 
             List<OrderItem> orderItems = new ArrayList<>();
             for (Map<String, Object> itemRaw : itemsRaw) {
