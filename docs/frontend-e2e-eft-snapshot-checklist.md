@@ -11,6 +11,7 @@ The frontend must trust the **saved order snapshot**, not the live bank-details 
 
 ### Frontend trust model
 - **Use `order.eftBankDetails` for any created EFT order.**
+- **Do not send `eftBankDetails` in the checkout payload.**
 - **Never re-fetch live bank details to render an old order.**
 - **Never cache one EFT account for all customers.**
 - **Never hardcode bank details in the UI.**
@@ -24,13 +25,16 @@ The frontend must trust the **saved order snapshot**, not the live bank-details 
 When the customer chooses `EFT` and places the order:
 
 1. Send the order normally to `POST /api/orders`.
+2. Do **not** include `eftBankDetails` in the request body.
 2. Wait for the order creation response.
-3. If the response includes `order.eftBankDetails`, display those values immediately as the payment instructions.
-4. Show the instructions exactly as returned for that order.
-5. Persist only the order id or order reference in the UI state, not a shared bank account.
+3. The backend will choose the EFT bank details and save them on the order.
+4. If the response includes `order.eftBankDetails`, display those values immediately as the payment instructions.
+5. Show the instructions exactly as returned for that order.
+6. Persist only the order id or order reference in the UI state, not a shared bank account.
 
 ### Do not do
 - Do not use `GET /api/bank-details/eft` as the checkout result.
+- Do not build or send a bank-details object from the frontend for checkout.
 - Do not store one EFT account in localStorage, sessionStorage, or global app state.
 - Do not assume the live bank details table matches the order that was just created.
 
