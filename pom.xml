@@ -170,6 +170,20 @@
                 </dependency>
             </dependencies>
 
+            <repositories>
+                <repository>
+                    <id>oss-sonatype-snapshots</id>
+                    <name>Sonatype OSS Snapshots</name>
+                    <url>https://s01.oss.sonatype.org/content/repositories/snapshots/</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+
             <build>
                 <plugins>
                     <plugin>
