@@ -30,6 +30,19 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Ensure core Jackson artifacts are pinned to the same stable release
+                 Some transitive POMs reference SNAPSHOTs; declaring explicit
+                 versions here prevents Maven from attempting to resolve them. -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.18.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-base</artifactId>
+                <version>2.18.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -110,9 +123,21 @@
             <artifactId>webauthn-server-core</artifactId>
             <version>2.6.0</version>
             <exclusions>
+                <!-- Exclude jackson-dataformat-cbor so we can control the CBOR version ourselves -->
                 <exclusion>
                     <groupId>com.fasterxml.jackson.dataformat</groupId>
                     <artifactId>jackson-dataformat-cbor</artifactId>
+                </exclusion>
+                <!-- Exclude jackson-databind and jackson-base to avoid transitive SNAPSHOT descriptors
+                     The project pins stable Jackson versions in dependencyManagement and explicit deps.
+                     Excluding here prevents Maven from following the transitive snapshot path. -->
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-databind</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson</groupId>
+                    <artifactId>jackson-base</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
