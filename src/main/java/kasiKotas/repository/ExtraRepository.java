@@ -23,5 +23,9 @@ public interface ExtraRepository extends JpaRepository<Extra, Long> {
     @Query("UPDATE Extra e SET e.stock = e.stock - :quantity WHERE e.id = :extraId AND e.stock >= :quantity")
     int decrementStockIfAvailable(@Param("extraId") Long extraId, @Param("quantity") int quantity);
 
+    @Modifying
+    @Query("UPDATE Extra e SET e.stock = e.stock + :quantity WHERE e.id = :extraId")
+    int incrementStock(@Param("extraId") Long extraId, @Param("quantity") int quantity);
+
     Optional<Extra> findByNameIgnoreCase(String name);
 }

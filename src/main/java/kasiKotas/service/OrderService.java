@@ -1,6 +1,9 @@
 // src/main/java/kasiKotas/service/OrderService.java
 package kasiKotas.service;
 
+import kasiKotas.exception.ConcurrencyConflictException;
+import kasiKotas.exception.InsufficientStockException;
+import kasiKotas.exception.OrderLimitExceededException;
 import kasiKotas.model.*;
 import kasiKotas.model.PromoCode;
 import kasiKotas.repository.OrderRepository;
@@ -10,8 +13,10 @@ import kasiKotas.repository.ProductRepository;
 import kasiKotas.repository.ExtraRepository;
 import kasiKotas.repository.ProductExtraRequirementRepository;
 // import kasiKotas.service.EmailService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,6 +47,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Transactional // Ensures all methods in this service are transactional
 public class OrderService {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
+
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
@@ -56,8 +63,6 @@ public class OrderService {
 
     private final ObjectMapper objectMapper;
 
-    @Value("${admin.email}")
-    private String adminEmail;
 
     @Autowired
     public OrderService(
@@ -101,9 +106,16 @@ public class OrderService {
      * @throws IllegalArgumentException if validation fails (e.g., user not found, insufficient stock, limit reached).
      */
     public Order createOrder(Order order) {
-        // 1. Check Daily Order Limit
-        // remaining = limitValue (admin's total cap) - total kotas already in DB
-        Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimit();
+        if (order == null) {
+            throw new IllegalArgumentException("Order payload is required.");
+        }
+
+        if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
+            throw new IllegalArgumentException("Order must contain at least one item.");
+        }
+
+        // 1. Check daily order limit while holding a pessimistic lock.
+        Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimitForUpdate();
 
         // Calculate kotas in this new order
         int kotasInThisOrder = order.getOrderItems().stream()
@@ -115,13 +127,14 @@ public class OrderService {
             int totalOrdered = getTodaysKotasOrdered();
             int remainingCapacity = limitValue - totalOrdered;
 
-            System.out.println("[DailyLimit] limitValue=" + limitValue + ", totalOrdered=" + totalOrdered + ", remaining=" + remainingCapacity + ", thisOrder=" + kotasInThisOrder);
+            log.info("[DailyLimit] limitValue={}, totalOrdered={}, remaining={}, thisOrder={}",
+                    limitValue, totalOrdered, remainingCapacity, kotasInThisOrder);
 
             if (remainingCapacity <= 0) {
-                throw new IllegalArgumentException("We are sold out for today. Check with us again tomorrow.");
+                throw new OrderLimitExceededException("We are sold out for today. Check with us again tomorrow.");
             }
             if (kotasInThisOrder > remainingCapacity) {
-                throw new IllegalArgumentException(
+                throw new OrderLimitExceededException(
                     "Only " + remainingCapacity + " kota(s) left for today. Please reduce your quantity.");
             }
         }
@@ -138,7 +151,7 @@ public class OrderService {
         LocalDateTime orderDateTime = LocalDateTime.now();
         order.setOrderDate(orderDateTime);
         order.setStatus(Order.OrderStatus.PENDING);
-        System.out.println("Initial orderDate set to: " + orderDateTime);
+        log.debug("Initial orderDate set to {}", orderDateTime);
 
         // If EFT is the payment method, assign a current bank-details snapshot on the server.
         // Never depend on the frontend to supply bank details for order creation.
@@ -148,14 +161,10 @@ public class OrderService {
                         .orElseThrow(() -> new IllegalArgumentException("EFT payment selected, but bank details are unavailable."));
                 order.setEftBankDetails(assignedBankDetails);
             }
-            System.out.println("OrderService: EFT Bank Details selected for saving: " + order.getEftBankDetails());
+            log.info("OrderService: EFT Bank Details selected for saving: {}", order.getEftBankDetails());
         }
 
-        // 3. Process Order Items and validate stock
-        if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
-            throw new IllegalArgumentException("Order must contain at least one item.");
-        }
-
+        // 3. Process order items and validate stock
         // Stock is decremented atomically per item to prevent concurrent overselling.
         Map<Long, Integer> extraDemandTotals = new HashMap<>();
         for (OrderItem item : order.getOrderItems()) {
@@ -167,9 +176,14 @@ public class OrderService {
             }
 
             // Atomic check-and-decrement at DB level: succeeds only if stock >= requested quantity now.
-            boolean stockDecreased = productService.decreaseStock(product.getId(), item.getQuantity());
+            boolean stockDecreased;
+            try {
+                stockDecreased = productService.decreaseStock(product.getId(), item.getQuantity());
+            } catch (PessimisticLockingFailureException ex) {
+                throw new ConcurrencyConflictException("High traffic right now. Please try again.", ex);
+            }
             if (!stockDecreased) {
-                throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
+                throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
             }
 
             item.setProduct(product);
@@ -189,20 +203,12 @@ public class OrderService {
 
             // Validate extras and sauces JSON (but don't recalculate total)
             if (StringUtils.hasText(item.getSelectedExtrasJson())) {
-                try {
-                    Map<Long, Integer> selectedExtraDemand = parseSelectedExtrasDemand(item.getSelectedExtrasJson(), item.getQuantity());
-                    selectedExtraDemand.forEach((extraId, demand) -> extraDemandTotals.merge(extraId, demand, Integer::sum));
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("Invalid selected extras for product: " + item.getProduct().getName());
-                }
+                Map<Long, Integer> selectedExtraDemand = parseSelectedExtrasDemand(item.getSelectedExtrasJson(), item.getQuantity());
+                selectedExtraDemand.forEach((extraId, demand) -> extraDemandTotals.merge(extraId, demand, Integer::sum));
             }
 
             if (StringUtils.hasText(item.getSelectedSaucesJson())) {
-                try {
-                    objectMapper.readValue(item.getSelectedSaucesJson(), new TypeReference<List<Sauce>>() {});
-                } catch (Exception e) {
-                    System.err.println("Failed to parse selectedSaucesJson for order item " + item.getProduct().getName() + ": " + e.getMessage());
-                }
+                parseSelectedSauces(item.getSelectedSaucesJson());
             }
         }
 
@@ -214,10 +220,15 @@ public class OrderService {
                 continue;
             }
 
-            boolean decremented = extraRepository.decrementStockIfAvailable(extraId, demand) == 1;
+            boolean decremented;
+            try {
+                decremented = extraRepository.decrementStockIfAvailable(extraId, demand) == 1;
+            } catch (PessimisticLockingFailureException ex) {
+                throw new ConcurrencyConflictException("High traffic right now. Please try again.", ex);
+            }
             if (!decremented) {
                 String extraName = extraRepository.findById(extraId).map(Extra::getName).orElse("ID " + extraId);
-                throw new IllegalArgumentException("Insufficient stock for extra: " + extraName);
+                throw new InsufficientStockException("Insufficient stock for extra: " + extraName);
             }
         }
 
@@ -229,18 +240,16 @@ public class OrderService {
         // Add extras cost
         for (OrderItem item : order.getOrderItems()) {
             if (StringUtils.hasText(item.getSelectedExtrasJson())) {
-                try {
-                    List<Map<String, Object>> extras = objectMapper.readValue(
-                            item.getSelectedExtrasJson(), new TypeReference<List<Map<String, Object>>>() {});
-                    for (Map<String, Object> extra : extras) {
-                        Object priceVal = extra.get("price");
-                        Object qtyVal = extra.get("quantity");
-                        double extraPrice = priceVal instanceof Number ? ((Number) priceVal).doubleValue() : 0.0;
-                        int extraQty = qtyVal instanceof Number ? ((Number) qtyVal).intValue() : 1;
-                        subtotal += extraPrice * extraQty * item.getQuantity();
-                    }
-                } catch (Exception e) {
-                    // malformed extras JSON — skip extra pricing, stock was already validated above
+                List<Map<String, Object>> extras = readJsonValue(
+                        item.getSelectedExtrasJson(),
+                        new TypeReference<>() {},
+                        "Invalid selected extras for product: " + item.getProduct().getName());
+                for (Map<String, Object> extra : extras) {
+                    Object priceVal = extra.get("price");
+                    Object qtyVal = extra.get("quantity");
+                    double extraPrice = priceVal instanceof Number ? ((Number) priceVal).doubleValue() : 0.0;
+                    int extraQty = qtyVal instanceof Number ? ((Number) qtyVal).intValue() : 1;
+                    subtotal += extraPrice * extraQty * item.getQuantity();
                 }
             }
         }
@@ -269,8 +278,8 @@ public class OrderService {
         order.setOrderDate(LocalDateTime.now());
 
         Order savedOrder = orderRepository.save(order);
-        System.out.println("OrderService: Saved order ID: " + savedOrder.getId() + ", orderDate after save: " + savedOrder.getOrderDate());
-        System.out.println("OrderService: EFT Bank Details after saving: " + savedOrder.getEftBankDetails()); // LOGGING ADDED
+        log.info("OrderService: Saved order ID: {}, orderDate after save: {}", savedOrder.getId(), savedOrder.getOrderDate());
+        log.info("OrderService: EFT Bank Details after saving: {}", savedOrder.getEftBankDetails());
 
         order.getOrderItems().forEach(item -> item.setOrder(savedOrder));
         orderItemRepository.saveAll(order.getOrderItems());
@@ -286,9 +295,10 @@ public class OrderService {
             return Collections.emptyMap();
         }
 
-        List<Map<String, Object>> extras = objectMapper.convertValue(
-                readJsonAsList(selectedExtrasJson),
-                new TypeReference<List<Map<String, Object>>>() {}
+        List<Map<String, Object>> extras = readJsonValue(
+                selectedExtrasJson,
+                new TypeReference<>() {},
+                "Invalid extras JSON payload."
         );
 
         Map<Long, Integer> demandByExtraId = new HashMap<>();
@@ -310,6 +320,14 @@ public class OrderService {
         return demandByExtraId;
     }
 
+    private List<Sauce> parseSelectedSauces(String selectedSaucesJson) {
+        return readJsonValue(
+                selectedSaucesJson,
+                new TypeReference<>() {},
+                "Invalid selected sauces payload."
+        );
+    }
+
     private Long resolveExtraId(Map<String, Object> extra) {
         Object idValue = extra.get("id");
         if (idValue instanceof Number numberId) {
@@ -326,11 +344,11 @@ public class OrderService {
         throw new IllegalArgumentException("Each selected extra must include id or name.");
     }
 
-    private Object readJsonAsList(String json) {
+    private <T> T readJsonValue(String json, TypeReference<T> typeReference, String errorMessage) {
         try {
-            return objectMapper.readValue(json, new TypeReference<List<Object>>() {});
+            return objectMapper.readValue(json, typeReference);
         } catch (Exception ex) {
-            throw new IllegalArgumentException("Invalid extras JSON payload.");
+            throw new IllegalArgumentException(errorMessage);
         }
     }
     /**
@@ -409,7 +427,7 @@ public class OrderService {
                     }
                 });
             }
-            System.out.println("OrderService: Retrieved Order ID " + order.getId() + ". EFT Bank Details: " + order.getEftBankDetails()); // LOGGING ADDED
+            log.debug("OrderService: Retrieved Order ID {}. EFT Bank Details: {}", order.getId(), order.getEftBankDetails());
         });
         return orders;
     }
@@ -441,7 +459,7 @@ public class OrderService {
                     }
                 });
             }
-            System.out.println("OrderService: Retrieved (Optimized) Order ID " + order.getId() + ". EFT Bank Details: " + order.getEftBankDetails()); // LOGGING ADDED
+            log.debug("OrderService: Retrieved (Optimized) Order ID {}. EFT Bank Details: {}", order.getId(), order.getEftBankDetails());
         });
         return orders;
     }
@@ -474,7 +492,7 @@ public class OrderService {
                     }
                 });
             }
-            System.out.println("OrderService: Retrieved (All) Order ID " + order.getId() + ". EFT Bank Details: " + order.getEftBankDetails()); // LOGGING ADDED
+            log.debug("OrderService: Retrieved (All) Order ID {}. EFT Bank Details: {}", order.getId(), order.getEftBankDetails());
         });
         return orders;
     }
@@ -508,7 +526,7 @@ public class OrderService {
                     }
                 });
             }
-            System.out.println("OrderService: Retrieved (Single) Order ID " + order.getId() + ". EFT Bank Details: " + order.getEftBankDetails()); // LOGGING ADDED
+            log.debug("OrderService: Retrieved (Single) Order ID {}. EFT Bank Details: {}", order.getId(), order.getEftBankDetails());
         });
         return orderOptional;
     }
@@ -523,6 +541,16 @@ public class OrderService {
     public Optional<Order> updateOrderStatus(Long orderId, Order.OrderStatus newStatus) { // Changed parameter type to Order.OrderStatus
         return orderRepository.findById(orderId)
                 .map(order -> {
+                    Order.OrderStatus currentStatus = order.getStatus();
+
+                    if (currentStatus == Order.OrderStatus.CANCELLED && newStatus != Order.OrderStatus.CANCELLED) {
+                        throw new IllegalArgumentException("Cancelled orders cannot be reactivated.");
+                    }
+
+                    if (newStatus == Order.OrderStatus.CANCELLED && currentStatus != Order.OrderStatus.CANCELLED) {
+                        restoreInventoryForOrder(order);
+                    }
+
                     order.setStatus(newStatus); // Use the directly provided enum
                     return orderRepository.save(order);
                 });
@@ -537,11 +565,63 @@ public class OrderService {
     public boolean deleteOrder(Long id) {
         Optional<Order> orderOptional = orderRepository.findById(id);
         if (orderOptional.isPresent()) {
-            // Delete the order
-            orderRepository.deleteById(id);
+            Order order = orderOptional.get();
+            if (order.getStatus() != Order.OrderStatus.CANCELLED) {
+                restoreInventoryForOrder(order);
+            }
+            orderRepository.delete(order);
             return true;
         }
         return false;
+    }
+
+    private void restoreInventoryForOrder(Order order) {
+        if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
+            return;
+        }
+
+        Map<Long, Integer> extraRestores = new HashMap<>();
+        for (OrderItem item : order.getOrderItems()) {
+            if (item.getProduct() == null || item.getProduct().getId() == null) {
+                throw new IllegalArgumentException("Order item is missing product information.");
+            }
+            if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                throw new IllegalArgumentException("Order item quantity must be positive.");
+            }
+
+            boolean restored = productService.increaseStock(item.getProduct().getId(), item.getQuantity());
+            if (!restored) {
+                throw new IllegalStateException("Failed to restore stock for product ID: " + item.getProduct().getId());
+            }
+
+            List<ProductExtraRequirement> requiredExtras = productExtraRequirementRepository.findByProductId(item.getProduct().getId());
+            for (ProductExtraRequirement requiredExtra : requiredExtras) {
+                int unitsRequired = requiredExtra.getUnitsRequired() == null ? 0 : requiredExtra.getUnitsRequired();
+                if (unitsRequired <= 0) {
+                    continue;
+                }
+                int demand = unitsRequired * item.getQuantity();
+                extraRestores.merge(requiredExtra.getExtra().getId(), demand, Integer::sum);
+            }
+
+            if (StringUtils.hasText(item.getSelectedExtrasJson())) {
+                Map<Long, Integer> selectedExtraDemand = parseSelectedExtrasDemand(item.getSelectedExtrasJson(), item.getQuantity());
+                selectedExtraDemand.forEach((extraId, demand) -> extraRestores.merge(extraId, demand, Integer::sum));
+            }
+        }
+
+        for (Map.Entry<Long, Integer> entry : extraRestores.entrySet()) {
+            Long extraId = entry.getKey();
+            int quantity = entry.getValue();
+            if (quantity <= 0) {
+                continue;
+            }
+
+            int restored = extraRepository.incrementStock(extraId, quantity);
+            if (restored != 1) {
+                throw new IllegalStateException("Failed to restore stock for extra ID: " + extraId);
+            }
+        }
     }
 
     /**
@@ -559,7 +639,7 @@ public class OrderService {
     public int getAllTimeKotasOrdered() {
         Long total = orderRepository.sumAllKotasOrdered();
         int result = (total == null) ? 0 : total.intValue();
-        System.out.println("[DailyLimit] Total kotas ordered all-time: " + result);
+        log.debug("[DailyLimit] Total kotas ordered all-time: {}", result);
         return result;
     }
 
@@ -574,7 +654,7 @@ public class OrderService {
         LocalDateTime endOfDay = startOfDay.plusDays(1);
         int todaysTotal = orderRepository.sumKotasOrderedBetween(startOfDay, endOfDay);
 
-        System.out.println("[DailyLimit] Total kotas ordered today (" + startOfDay + " to " + endOfDay + "): " + todaysTotal);
+        log.debug("[DailyLimit] Total kotas ordered today ({} to {}): {}", startOfDay, endOfDay, todaysTotal);
         return todaysTotal;
     }
 }

@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
-import java.util.List;
 
 /**
  * Service layer for managing the Total Order Limit.
@@ -38,9 +37,15 @@ public class DailyOrderLimitService {
      * @return An Optional containing the DailyOrderLimit (now TotalOrderLimit) if set, or empty.
      */
     public Optional<DailyOrderLimit> getOrderLimit() {
-        // Fetch all and get the first, as we expect only one configuration record
-        List<DailyOrderLimit> limits = dailyOrderLimitRepository.findAll();
-        return limits.isEmpty() ? Optional.empty() : Optional.of(limits.get(0));
+        return dailyOrderLimitRepository.findFirstByOrderByIdAsc();
+    }
+
+    /**
+     * Retrieves and locks the order limit row for update.
+     * Used by OrderService during order placement to prevent race conditions.
+     */
+    public Optional<DailyOrderLimit> getOrderLimitForUpdate() {
+        return dailyOrderLimitRepository.findFirstByOrderByIdAscForUpdate();
     }
 
     /**

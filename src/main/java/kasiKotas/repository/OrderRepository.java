@@ -61,11 +61,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findAllByOrderDateBetweenWithItems(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     // Count all order items quantity for a date range (most direct approach)
-    @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi JOIN oi.order o WHERE o.orderDate IS NOT NULL AND o.orderDate >= :start AND o.orderDate < :end")
+    @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi JOIN oi.order o WHERE o.orderDate IS NOT NULL AND o.orderDate >= :start AND o.orderDate < :end AND o.status <> 'CANCELLED'")
     int sumKotasOrderedBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     // Count ALL order item quantities across all time (used for daily limit tracking)
-    @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi")
+    @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi JOIN oi.order o WHERE o.status <> 'CANCELLED'")
     Long sumAllKotasOrdered();
 
     // Check if user has a completed order (DELIVERED or COLLECTED) containing a specific product

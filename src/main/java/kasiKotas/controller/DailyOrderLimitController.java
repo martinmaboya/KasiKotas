@@ -5,7 +5,6 @@ import kasiKotas.model.DailyOrderLimit;
 import kasiKotas.service.DailyOrderLimitService;
 import kasiKotas.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -67,22 +66,17 @@ public class DailyOrderLimitController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<DailyOrderLimit> setOrderLimit(@RequestBody Map<String, Integer> requestBody) {
+        if (requestBody == null) {
+            throw new IllegalArgumentException("Request body is required.");
+        }
+
         Integer limitValue = requestBody.get("limitValue");
         if (limitValue == null) {
-            return ResponseEntity.badRequest().build();
+            throw new IllegalArgumentException("limitValue is required.");
         }
-        try {
-            // Set the limit as total capacity for the day
-            DailyOrderLimit savedLimit = dailyOrderLimitService.setOrderLimit(limitValue);
-            return ResponseEntity.ok(savedLimit);
-        } catch (IllegalArgumentException e) {
-            System.err.println("Error setting order limit: " + e.getMessage());
-            return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
-            System.err.println("An unexpected error occurred: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+
+        DailyOrderLimit savedLimit = dailyOrderLimitService.setOrderLimit(limitValue);
+        return ResponseEntity.ok(savedLimit);
     }
 
     /**
@@ -93,18 +87,12 @@ public class DailyOrderLimitController {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/todays-kotas")
     public ResponseEntity<Map<String, Integer>> getTodaysKotasOrdered() {
-        try {
-            int kotasOrdered = orderService.getTodaysKotasOrdered();
-            int kotasOrderedAllTime = orderService.getAllTimeKotasOrdered();
-            return ResponseEntity.ok(Map.of(
-                "kotasOrdered", kotasOrdered,
-                "kotasOrderedToday", kotasOrdered,
-                "kotasOrderedAllTime", kotasOrderedAllTime
-            ));
-        } catch (Exception e) {
-            System.err.println("Error getting today's kotas: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        int kotasOrdered = orderService.getTodaysKotasOrdered();
+        int kotasOrderedAllTime = orderService.getAllTimeKotasOrdered();
+        return ResponseEntity.ok(Map.of(
+            "kotasOrdered", kotasOrdered,
+            "kotasOrderedToday", kotasOrdered,
+            "kotasOrderedAllTime", kotasOrderedAllTime
+        ));
     }
 }

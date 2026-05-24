@@ -2,8 +2,12 @@
 package kasiKotas.repository;
 
 import kasiKotas.model.DailyOrderLimit;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
 
 /**
  * Spring Data JPA repository for the DailyOrderLimit entity.
@@ -13,6 +17,9 @@ import org.springframework.stereotype.Repository;
  */
 @Repository // Marks this interface as a Spring Data repository
 public interface DailyOrderLimitRepository extends JpaRepository<DailyOrderLimit, Long> {
-    // JpaRepository provides all necessary methods like save(), findById(), findAll(), etc.
-    // No custom methods are strictly needed here for a single-record scenario.
+    Optional<DailyOrderLimit> findFirstByOrderByIdAsc();
+
+    // Locks the single configured limit row during order placement.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<DailyOrderLimit> findFirstByOrderByIdAscForUpdate();
 }

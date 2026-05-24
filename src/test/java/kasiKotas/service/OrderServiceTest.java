@@ -23,7 +23,9 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,9 +44,8 @@ class OrderServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Test
-    void createOrderStoresImmutableEftSnapshotOnTheOrder() {
-        OrderService service = new OrderService(
+    private OrderService buildService() {
+        return new OrderService(
                 orderRepository,
                 orderItemRepository,
                 userRepository,
@@ -57,6 +58,27 @@ class OrderServiceTest {
                 promoCodeService,
                 objectMapper
         );
+    }
+
+    private Order buildRestoreCandidateOrder() {
+        Product productRef = new Product();
+        productRef.setId(3L);
+
+        OrderItem orderItem = new OrderItem();
+        orderItem.setProduct(productRef);
+        orderItem.setQuantity(2);
+        orderItem.setSelectedExtrasJson("[{\"id\":8,\"quantity\":1}]");
+
+        Order order = new Order();
+        order.setId(11L);
+        order.setStatus(Order.OrderStatus.PROCESSING);
+        order.setOrderItems(List.of(orderItem));
+        return order;
+    }
+
+    @Test
+    void createOrderStoresImmutableEftSnapshotOnTheOrder() {
+        OrderService service = buildService();
 
         User customer = new User();
         customer.setId(7L);
@@ -96,7 +118,7 @@ class OrderServiceTest {
         order.setShippingAddress("123 Main Road");
         order.setOrderItems(List.of(orderItem));
 
-        when(dailyOrderLimitService.getOrderLimit()).thenReturn(Optional.empty());
+        when(dailyOrderLimitService.getOrderLimitForUpdate()).thenReturn(Optional.empty());
         when(userRepository.findById(7L)).thenReturn(Optional.of(customer));
         when(productRepository.findById(3L)).thenReturn(Optional.of(product));
         when(productService.decreaseStock(3L, 2)).thenReturn(true);
@@ -121,6 +143,42 @@ class OrderServiceTest {
 
         assertEquals("Safe Bank", savedOrder.getEftBankDetails().getBankName());
         assertEquals("123456789", savedOrder.getEftBankDetails().getAccountNumber());
+    }
+
+    @Test
+    void cancellingAnOrderRestoresProductAndExtraStock() {
+        OrderService service = buildService();
+        Order order = buildRestoreCandidateOrder();
+
+        when(orderRepository.findById(11L)).thenReturn(Optional.of(order));
+        when(productService.increaseStock(3L, 2)).thenReturn(true);
+        when(productExtraRequirementRepository.findByProductId(3L)).thenReturn(List.of());
+        when(extraRepository.incrementStock(8L, 2)).thenReturn(1);
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Order updated = service.updateOrderStatus(11L, Order.OrderStatus.CANCELLED).orElseThrow();
+
+        assertEquals(Order.OrderStatus.CANCELLED, updated.getStatus());
+        verify(productService).increaseStock(3L, 2);
+        verify(extraRepository).incrementStock(8L, 2);
+    }
+
+    @Test
+    void deletingAnActiveOrderRestoresProductAndExtraStock() {
+        OrderService service = buildService();
+        Order order = buildRestoreCandidateOrder();
+
+        when(orderRepository.findById(11L)).thenReturn(Optional.of(order));
+        when(productService.increaseStock(3L, 2)).thenReturn(true);
+        when(productExtraRequirementRepository.findByProductId(3L)).thenReturn(List.of());
+        when(extraRepository.incrementStock(8L, 2)).thenReturn(1);
+
+        boolean deleted = service.deleteOrder(11L);
+
+        assertTrue(deleted);
+        verify(productService).increaseStock(3L, 2);
+        verify(extraRepository).incrementStock(8L, 2);
+        verify(orderRepository).delete(order);
     }
 }
 

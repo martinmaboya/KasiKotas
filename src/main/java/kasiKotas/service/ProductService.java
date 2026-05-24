@@ -206,6 +206,20 @@ public class ProductService {
     }
 
     /**
+     * Atomically increases stock when an order is cancelled or deleted.
+     * @param productId the product ID
+     * @param quantity the quantity to restore
+     * @return true when stock was restored successfully
+     */
+    public boolean increaseStock(Long productId, int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero.");
+        }
+        int updatedRows = productRepository.incrementStock(productId, quantity);
+        return updatedRows == 1;
+    }
+
+    /**
      * Saves an uploaded product image to the configured storage location.
      * Generates a unique filename to prevent collisions.
      * @param file The MultipartFile received from the client.
