@@ -8,13 +8,15 @@ WORKDIR /app
 
 # Copy the pom.xml and download dependencies first to leverage Docker cache
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
 
 # Copy the entire project source code
 COPY src ./src
 
-# Package the application into a JAR
-RUN mvn clean package -DskipTests
+# Package the application into a JAR. Using package directly avoids the
+# brittle `dependency:go-offline` goal which can fail when transitive
+# metadata references SNAPSHOTs. We still get Docker layer caching by
+# copying pom.xml first and then source files.
+RUN mvn -B clean package -DskipTests
 
 # === RUNTIME STAGE ===
 # Use a lean Eclipse Temurin JRE base image for the final application
