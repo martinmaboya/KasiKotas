@@ -124,6 +124,13 @@
             <version>2.18.0</version>
         </dependency>
 
+        <!-- Ensure we never pull a snapshot jackson-databind via transitive deps -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.18.0</version>
+        </dependency>
+
         <!-- PAYMENTS -->
         <dependency>
             <groupId>com.stripe</groupId>
