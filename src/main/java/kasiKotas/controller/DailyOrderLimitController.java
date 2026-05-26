@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -64,19 +65,60 @@ public class DailyOrderLimitController {
      * Only accessible by ADMIN users.
      */
     @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping
-    public ResponseEntity<DailyOrderLimit> setOrderLimit(@RequestBody Map<String, Integer> requestBody) {
+    @RequestMapping(method = {RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH})
+    public ResponseEntity<Map<String, Object>> setOrderLimit(@RequestBody Map<String, Object> requestBody) {
         if (requestBody == null) {
             throw new IllegalArgumentException("Request body is required.");
         }
 
-        Integer limitValue = requestBody.get("limitValue");
+        Integer limitValue = resolveLimitValue(requestBody);
         if (limitValue == null) {
-            throw new IllegalArgumentException("limitValue is required.");
+            throw new IllegalArgumentException("limitValue is required. Accepted keys: limitValue, limit, dailyLimit, totalLimit.");
         }
 
-        DailyOrderLimit savedLimit = dailyOrderLimitService.setOrderLimit(limitValue);
-        return ResponseEntity.ok(savedLimit);
+        dailyOrderLimitService.setOrderLimit(limitValue);
+
+        // Return the latest values from DB so frontend can reflect confirmed state immediately.
+        Optional<DailyOrderLimit> latestLimitOptional = dailyOrderLimitService.getOrderLimit();
+        if (latestLimitOptional.isEmpty()) {
+            throw new IllegalStateException("Order limit update succeeded but no limit record was found.");
+        }
+
+        DailyOrderLimit latestLimit = latestLimitOptional.get();
+        int kotasOrderedToday = orderService.getTodaysKotasOrdered();
+        int remainingCapacity = Math.max(0, latestLimit.getLimitValue() - kotasOrderedToday);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("id", latestLimit.getId());
+        response.put("limitValue", latestLimit.getLimitValue());
+        response.put("kotasOrderedToday", kotasOrderedToday);
+        response.put("remainingCapacity", remainingCapacity);
+        response.put("message", "Order limit updated successfully.");
+        return ResponseEntity.ok(response);
+    }
+
+    private Integer resolveLimitValue(Map<String, Object> requestBody) {
+        return parseInteger(requestBody.get("limitValue"),
+                parseInteger(requestBody.get("limit"),
+                        parseInteger(requestBody.get("dailyLimit"),
+                                parseInteger(requestBody.get("totalLimit"), null))));
+    }
+
+    private Integer parseInteger(Object value, Integer fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Integer.parseInt(text.trim());
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException("limitValue must be a valid number.");
+            }
+        }
+        return fallback;
     }
 
     /**
