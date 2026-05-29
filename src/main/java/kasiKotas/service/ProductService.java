@@ -173,6 +173,50 @@ public class ProductService {
                 });
     }
 
+    public Optional<Product> updateProductPartial(Long id, Product updates) {
+        return productRepository.findById(id)
+                .map(existingProduct -> {
+                    boolean hasUpdates = false;
+
+                    if (updates.getName() != null) {
+                        if (!StringUtils.hasText(updates.getName())) {
+                            throw new IllegalArgumentException("Product name cannot be empty.");
+                        }
+                        existingProduct.setName(updates.getName());
+                        hasUpdates = true;
+                    }
+
+                    if (updates.getDescription() != null) {
+                        if (!StringUtils.hasText(updates.getDescription())) {
+                            throw new IllegalArgumentException("Product description cannot be empty.");
+                        }
+                        existingProduct.setDescription(updates.getDescription());
+                        hasUpdates = true;
+                    }
+
+                    if (updates.getPrice() != null) {
+                        if (updates.getPrice() <= 0) {
+                            throw new IllegalArgumentException("Updated product price must be positive.");
+                        }
+                        existingProduct.setPrice(updates.getPrice());
+                        hasUpdates = true;
+                    }
+
+                    if (updates.getStock() != null) {
+                        if (updates.getStock() < 0) {
+                            throw new IllegalArgumentException("Updated product stock cannot be negative.");
+                        }
+                        existingProduct.setStock(updates.getStock());
+                        hasUpdates = true;
+                    }
+
+                    if (!hasUpdates) {
+                        throw new IllegalArgumentException("No updatable fields provided.");
+                    }
+
+                    return productRepository.save(existingProduct);
+                });
+    }
 
     /**
      * Deletes a product by its ID.

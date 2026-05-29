@@ -22,9 +22,15 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), "BAD_REQUEST", request);
     }
 
-    @ExceptionHandler({InsufficientStockException.class, OrderLimitExceededException.class})
-    public ResponseEntity<ApiError> handleBusinessConflict(RuntimeException ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), "BUSINESS_CONFLICT", request);
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<ApiError> handleInsufficientStock(InsufficientStockException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), "INSUFFICIENT_STOCK", request);
+    }
+
+    @ExceptionHandler(OrderLimitExceededException.class)
+    public ResponseEntity<ApiError> handleOrderLimitExceeded(OrderLimitExceededException ex, HttpServletRequest request) {
+        // Return a clear, dedicated code so frontend can react specifically to limit errors
+        return build(HttpStatus.CONFLICT, ex.getMessage(), "ORDER_LIMIT_EXCEEDED", request);
     }
 
     @ExceptionHandler({
@@ -34,7 +40,8 @@ public class GlobalExceptionHandler {
             DeadlockLoserDataAccessException.class
     })
     public ResponseEntity<ApiError> handleConcurrencyConflict(Exception ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT,
+        // Concurrency issues are transient; map to 503 Service Unavailable so clients can decide to retry
+        return build(HttpStatus.SERVICE_UNAVAILABLE,
                 "High traffic right now. Please try again.",
                 "CONCURRENCY_CONFLICT",
                 request);

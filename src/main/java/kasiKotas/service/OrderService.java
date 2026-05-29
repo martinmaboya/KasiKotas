@@ -131,11 +131,13 @@ public class OrderService {
                     limitValue, totalOrdered, remainingCapacity, kotasInThisOrder);
 
             if (remainingCapacity <= 0) {
-                throw new OrderLimitExceededException("We are sold out for today. Check with us again tomorrow.");
+                throw new OrderLimitExceededException(
+                        "Kota limit reached for today. Please try again tomorrow.");
             }
             if (kotasInThisOrder > remainingCapacity) {
                 throw new OrderLimitExceededException(
-                    "Only " + remainingCapacity + " kota(s) left for today. Please reduce your quantity.");
+                        "Kota limit reached! You can only order " + remainingCapacity +
+                                " more kota today. Please reduce your order quantity and try again.");
             }
         }
 

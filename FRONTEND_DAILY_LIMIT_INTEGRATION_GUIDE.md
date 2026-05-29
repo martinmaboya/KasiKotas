@@ -45,6 +45,8 @@ The backend now returns the **confirmed saved values** from DB:
 2. After update, use `response.limitValue` to refresh the input/label.
 3. Show `remainingCapacity` and `kotasOrderedToday` from the same response.
 4. On error, render backend message from `ApiError.message`.
+5. If `ApiError.code` === `ORDER_LIMIT_EXCEEDED` show the message prominently and stop retrying.
+6. If the call returns HTTP 503 (`CONCURRENCY_CONFLICT`), show a retry suggestion: "High traffic — please try again in a few seconds." and allow the user to retry.
 
 ## JavaScript Example (drop-in)
 

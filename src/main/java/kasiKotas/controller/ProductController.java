@@ -91,6 +91,37 @@ public class ProductController implements WebMvcConfigurer {
          }
      }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping(value = "/{id}", consumes = {"application/json"})
+    public ResponseEntity<Product> updateProductJson(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, Object> payload
+    ) {
+        try {
+            Product updates = new Product();
+            if (payload.containsKey("name")) {
+                updates.setName(optionalString(payload, "name"));
+            }
+            if (payload.containsKey("description")) {
+                updates.setDescription(optionalString(payload, "description"));
+            }
+            if (payload.containsKey("price")) {
+                updates.setPrice(optionalDouble(payload, "price"));
+            }
+            if (payload.containsKey("stock")) {
+                updates.setStock(optionalInteger(payload, "stock"));
+            }
+
+            return productService.updateProductPartial(id, updates)
+                    .map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.notFound().build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (OptimisticLockingFailureException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+    }
+
     // Endpoint to get product image as a blob (public)
     @GetMapping("/{id}/image")
     public ResponseEntity<byte[]> getProductImage(@PathVariable Long id) {
@@ -117,5 +148,41 @@ public class ProductController implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/product-images/**")
                 .addResourceLocations("file:./uploads/product-images/");
+    }
+
+    private String optionalString(java.util.Map<String, Object> payload, String key) {
+        Object value = payload.get(key);
+        if (value == null) {
+            return null;
+        }
+        return value.toString();
+    }
+
+    private Double optionalDouble(java.util.Map<String, Object> payload, String key) {
+        Object value = payload.get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number numberValue) {
+            return numberValue.doubleValue();
+        }
+        if (value instanceof String stringValue && !stringValue.isBlank()) {
+            return Double.parseDouble(stringValue.trim());
+        }
+        throw new IllegalArgumentException("Invalid " + key + " format.");
+    }
+
+    private Integer optionalInteger(java.util.Map<String, Object> payload, String key) {
+        Object value = payload.get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number numberValue) {
+            return numberValue.intValue();
+        }
+        if (value instanceof String stringValue && !stringValue.isBlank()) {
+            return Integer.parseInt(stringValue.trim());
+        }
+        throw new IllegalArgumentException("Invalid " + key + " format.");
     }
 }
