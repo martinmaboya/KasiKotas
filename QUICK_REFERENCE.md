@@ -44,6 +44,7 @@
 | `SECURITY_COMPLETE.md` | Full summary for everyone | 10 min |
 | `SECURITY_IMPLEMENTATION_SUMMARY.md` | Technical details | 20 min |
 | `BANK_DETAILS_SECURITY_FRONTEND_GUIDE.md` | Frontend implementation | 30 min |
+| `FRONTEND_PRODUCT_UPDATE_GUIDE.md` | Product update frontend guide | 10 min |
 | `DEPLOYMENT_CHECKLIST.md` | Production deployment | 30 min |
 
 ---
@@ -201,7 +202,8 @@ Attempt logged as security alert
 1. Start with: `SECURITY_COMPLETE.md`
 2. For technical details: `SECURITY_IMPLEMENTATION_SUMMARY.md`
 3. For frontend: `BANK_DETAILS_SECURITY_FRONTEND_GUIDE.md`
-4. For deployment: `DEPLOYMENT_CHECKLIST.md`
+4. For product updates: `FRONTEND_PRODUCT_UPDATE_GUIDE.md`
+5. For deployment: `DEPLOYMENT_CHECKLIST.md`
 
 **If deployment issues:**
 - Check: Render application logs
@@ -227,4 +229,3 @@ DEPLOYMENT: ✅ READY
 **Last Updated**: May 19, 2026  
 **Version**: 1.0  
 **Status**: ✅ READY
-

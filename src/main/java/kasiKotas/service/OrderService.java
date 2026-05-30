@@ -554,7 +554,36 @@ public class OrderService {
                     }
 
                     order.setStatus(newStatus); // Use the directly provided enum
-                    return orderRepository.save(order);
+                    Order saved = orderRepository.save(order);
+
+                    // Initialize lazy relations before returning so serialization doesn't fail after tx closes.
+                    if (saved.getUser() != null) {
+                        saved.getUser().getFirstName();
+                        saved.getUser().getLastName();
+                        saved.getUser().getEmail();
+                    }
+                    if (saved.getOrderItems() != null) {
+                        saved.getOrderItems().size();
+                        saved.getOrderItems().forEach(orderItem -> {
+                            if (orderItem.getProduct() != null) {
+                                orderItem.getProduct().getName();
+                            }
+                            if (StringUtils.hasText(orderItem.getSelectedExtrasJson())) {
+                                try {
+                                    objectMapper.readValue(orderItem.getSelectedExtrasJson(), new TypeReference<List<Extra>>() {});
+                                } catch (Exception ignored) {
+                                }
+                            }
+                            if (StringUtils.hasText(orderItem.getSelectedSaucesJson())) {
+                                try {
+                                    objectMapper.readValue(orderItem.getSelectedSaucesJson(), new TypeReference<List<Sauce>>() {});
+                                } catch (Exception ignored) {
+                                }
+                            }
+                        });
+                    }
+
+                    return saved;
                 });
     }
 
