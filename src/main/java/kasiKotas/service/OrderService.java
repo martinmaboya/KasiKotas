@@ -132,12 +132,11 @@ public class OrderService {
 
             if (remainingCapacity <= 0) {
                 throw new OrderLimitExceededException(
-                        "Kota limit reached for today. Please try again tomorrow.");
+                        "We are sold out for today. Please try again tomorrow.");
             }
             if (kotasInThisOrder > remainingCapacity) {
                 throw new OrderLimitExceededException(
-                        "Kota limit reached! You can only order " + remainingCapacity +
-                                " more kota today. Please reduce your order quantity and try again.");
+                        "Only " + remainingCapacity + " kota left for today. Please reduce your quantity and try again.");
             }
         }
 
@@ -185,7 +184,7 @@ public class OrderService {
                 throw new ConcurrencyConflictException("High traffic right now. Please try again.", ex);
             }
             if (!stockDecreased) {
-                throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
+                throw new InsufficientStockException("Sorry, " + product.getName() + " is sold out. Please remove it or choose another item.");
             }
 
             item.setProduct(product);
@@ -230,7 +229,7 @@ public class OrderService {
             }
             if (!decremented) {
                 String extraName = extraRepository.findById(extraId).map(Extra::getName).orElse("ID " + extraId);
-                throw new InsufficientStockException("Insufficient stock for extra: " + extraName);
+                throw new InsufficientStockException("Sorry, " + extraName + " is sold out. Please remove it or choose another extra.");
             }
         }
 
