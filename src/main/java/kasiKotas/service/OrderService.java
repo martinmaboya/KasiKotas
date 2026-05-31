@@ -114,6 +114,12 @@ public class OrderService {
             throw new IllegalArgumentException("Order must contain at least one item.");
         }
 
+        // Quick sold-out check without taking a lock to avoid concurrency noise when limit is zero.
+        Optional<DailyOrderLimit> limitSnapshot = dailyOrderLimitService.getOrderLimit();
+        if (limitSnapshot.isPresent() && limitSnapshot.get().getLimitValue() <= 0) {
+            throw new OrderLimitExceededException("We are sold out for today. Please try again tomorrow.");
+        }
+
         // 1. Check daily order limit while holding a pessimistic lock.
         Optional<DailyOrderLimit> limitOptional = dailyOrderLimitService.getOrderLimitForUpdate();
 
