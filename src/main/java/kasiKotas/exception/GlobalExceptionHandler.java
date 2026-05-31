@@ -13,9 +13,18 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import kasiKotas.service.DailyOrderLimitService;
+import kasiKotas.model.DailyOrderLimit;
+import java.util.Optional;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private final DailyOrderLimitService dailyOrderLimitService;
+
+    public GlobalExceptionHandler(DailyOrderLimitService dailyOrderLimitService) {
+        this.dailyOrderLimitService = dailyOrderLimitService;
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleBadRequest(IllegalArgumentException ex, HttpServletRequest request) {
@@ -40,6 +49,19 @@ public class GlobalExceptionHandler {
             DeadlockLoserDataAccessException.class
     })
     public ResponseEntity<ApiError> handleConcurrencyConflict(Exception ex, HttpServletRequest request) {
+        // If the daily limit is already zero, return a clear sold-out message instead of a generic retry.
+        try {
+            Optional<DailyOrderLimit> limit = dailyOrderLimitService.getOrderLimit();
+            if (limit.isPresent() && limit.get().getLimitValue() <= 0) {
+                return build(HttpStatus.CONFLICT,
+                        "We are sold out for today. Please try again tomorrow.",
+                        "ORDER_LIMIT_EXCEEDED",
+                        request);
+            }
+        } catch (Exception ignored) {
+            // Fall through to generic concurrency handling.
+        }
+
         // Concurrency issues are transient; map to 503 Service Unavailable so clients can decide to retry
         return build(HttpStatus.SERVICE_UNAVAILABLE,
                 "High traffic right now. Please try again.",
@@ -73,6 +95,3 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(error);
     }
 }
-
-
-
