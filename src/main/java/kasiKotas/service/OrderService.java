@@ -16,6 +16,7 @@ import kasiKotas.repository.ProductExtraRequirementRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -105,6 +106,7 @@ public class OrderService {
      * @return The created and saved Order object.
      * @throws IllegalArgumentException if validation fails (e.g., user not found, insufficient stock, limit reached).
      */
+    @CacheEvict(value = "userOrders", allEntries = true)
     public Order createOrder(Order order) {
         if (order == null) {
             throw new IllegalArgumentException("Order payload is required.");
@@ -545,6 +547,7 @@ public class OrderService {
      * @return An Optional containing the updated Order if found, or empty if not found.
      * @throws IllegalArgumentException if the new status is invalid.
      */
+    @CacheEvict(value = "userOrders", allEntries = true)
     public Optional<Order> updateOrderStatus(Long orderId, Order.OrderStatus newStatus) { // Changed parameter type to Order.OrderStatus
         return orderRepository.findById(orderId)
                 .map(order -> {
@@ -598,6 +601,7 @@ public class OrderService {
      * @param id The ID of the order to delete.
      * @return true if the order was found and deleted, false otherwise.
      */
+    @CacheEvict(value = "userOrders", allEntries = true)
     public boolean deleteOrder(Long id) {
         Optional<Order> orderOptional = orderRepository.findById(id);
         if (orderOptional.isPresent()) {
