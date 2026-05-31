@@ -2,13 +2,18 @@ package kasiKotas.controller;
 
 import kasiKotas.model.*;
 import kasiKotas.service.OrderService;
+import kasiKotas.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -23,10 +28,12 @@ import java.util.concurrent.TimeUnit;
 public class OrderController {
 
     private final OrderService orderService;
+    private final UserService userService;
 
     @Autowired
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, UserService userService) {
         this.orderService = orderService;
+        this.userService = userService;
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -129,7 +136,6 @@ public class OrderController {
             throw new IllegalArgumentException("Order payload is required.");
         }
 
-        Long userId = asLong(orderRequest.get("userId"), "userId");
         String shippingAddress = asString(orderRequest.get("shippingAddress"), "shippingAddress", false);
         String paymentMethod = asString(orderRequest.get("paymentMethod"), "paymentMethod", true);
         String deliveryMethod = asString(orderRequest.get("deliveryMethod"), "deliveryMethod", false);
@@ -137,9 +143,10 @@ public class OrderController {
         List<Map<String, Object>> itemsRaw = asListOfMaps(orderRequest.get("orderItems"), "orderItems");
         LocalDateTime scheduledDeliveryTime = parseScheduledDeliveryTime(orderRequest.get("scheduledDeliveryTime"));
 
+        User authenticatedUser = resolveAuthenticatedUser();
+
         Order newOrder = new Order();
-        User user = new User(userId);
-        newOrder.setUser(user);
+        newOrder.setUser(new User(authenticatedUser.getId()));
         newOrder.setShippingAddress(shippingAddress);
         newOrder.setPaymentMethod(paymentMethod);
         newOrder.setDeliveryMethod(deliveryMethod);
@@ -165,6 +172,26 @@ public class OrderController {
         newOrder.setOrderItems(orderItems);
         Order savedOrder = orderService.createOrder(newOrder);
         return new ResponseEntity<>(savedOrder, HttpStatus.CREATED);
+    }
+
+    private User resolveAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+
+        Object principal = authentication.getPrincipal();
+        String email;
+        if (principal instanceof UserDetails userDetails) {
+            email = userDetails.getUsername();
+        } else if (principal instanceof String username && !"anonymousUser".equalsIgnoreCase(username)) {
+            email = username;
+        } else {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+
+        return userService.getUserByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user not found"));
     }
 
     private LocalDateTime parseScheduledDeliveryTime(Object scheduledTimeObj) {
