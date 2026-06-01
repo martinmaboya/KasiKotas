@@ -81,7 +81,7 @@ public class OrderController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.id")
+    @PreAuthorize("@authorizationHelper.canAccessUser(authentication, #userId)")
     @GetMapping("/user/{userId}")
     @Cacheable(value = "userOrders", key = "#userId")
     public ResponseEntity<List<Order>> getOrdersByUserId(@PathVariable Long userId) {

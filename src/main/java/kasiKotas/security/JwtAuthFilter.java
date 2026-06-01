@@ -46,18 +46,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String role = jwtUtil.getRoleFromToken(token); // ✅ Extract role
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // ✅ Use role from JWT instead of loading from database
+                UserDetails userPrincipal = customUserDetailsService.loadUserByUsername(username);
                 List<SimpleGrantedAuthority> authorities = Collections.singletonList(
                         new SimpleGrantedAuthority("ROLE_" + role)
                 );
 
-                // ✅ Create a simple user principal with JWT role
-                org.springframework.security.core.userdetails.User userPrincipal = 
-                    new org.springframework.security.core.userdetails.User(
-                        username, 
-                        "", // No password needed for JWT auth
-                        authorities
-                    );
 
                 // ✅ Set authentication
                 UsernamePasswordAuthenticationToken authentication =
