@@ -38,7 +38,7 @@ public class Order {
     // when serializing Order (which has a User) and User (which might have Orders).
     @ManyToOne(fetch = FetchType.LAZY) // Keeping LAZY as it's generally better for performance
     @JoinColumn(name = "user_id", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "orders"}) // Ignore 'orders' in User to break loop
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "orders", "password", "version"})
     private User user;
 
     @Column(name = "order_date", nullable = false)
@@ -140,14 +140,6 @@ public class Order {
 
     // Custom getter for eftBankDetails to reconstruct the object from snapshot fields
     public BankDetails getEftBankDetails() {
-        System.out.println("Order.getEftBankDetails() called. Snapshot fields: " +
-                "ID=" + this.eftBankDetailsId +
-                ", BankName=" + this.eftBankName +
-                ", AccountName=" + this.eftAccountName +
-                ", AccountNumber=" + this.eftAccountNumber +
-                ", ShapId=" + this.eftShapId +
-                ", BranchCode=" + this.eftBranchCode); // LOGGING ADDED
-
         if (!hasEftBankDetailsSnapshot()) {
             return null;
         }
@@ -172,7 +164,6 @@ public class Order {
             this.eftShapId = null;
             this.eftBranchCode = null;
             this.eftBankDetails = null; // Also clear the ManyToOne relationship
-            System.out.println("Order.setEftBankDetails() called with null. All snapshot fields cleared."); // LOGGING ADDED
             return;
         }
 
@@ -182,14 +173,6 @@ public class Order {
         this.eftAccountNumber = eftBankDetails.getAccountNumber();
         this.eftShapId = eftBankDetails.getShapId();
         this.eftBranchCode = eftBankDetails.getBranchCode();
-
-        System.out.println("Order.setEftBankDetails() called. Snapshot fields set to: " +
-                "ID=" + this.eftBankDetailsId +
-                ", BankName=" + this.eftBankName +
-                ", AccountName=" + this.eftAccountName +
-                ", AccountNumber=" + this.eftAccountNumber +
-                ", ShapId=" + this.eftShapId +
-                ", BranchCode=" + this.eftBranchCode); // LOGGING ADDED
     }
 
     private boolean hasEftBankDetailsSnapshot() {

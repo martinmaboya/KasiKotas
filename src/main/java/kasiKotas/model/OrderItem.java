@@ -42,7 +42,8 @@ public class OrderItem {
     // For now, assume Product is the root of its own graph.
     @ManyToOne(fetch = FetchType.LAZY) // Lazy loading for performance
     @JoinColumn(name = "product_id", nullable = false) // Foreign key column
-    private Product product; // Product is eager-loaded by OrderService when converting to DTO
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "image", "version"})
+    private Product product;
 
     @Column(nullable = false)
     private Integer quantity; // Quantity of this product in the order

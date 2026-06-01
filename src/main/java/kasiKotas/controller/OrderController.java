@@ -6,7 +6,6 @@ import kasiKotas.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -83,12 +82,8 @@ public class OrderController {
 
     @PreAuthorize("@authorizationHelper.canAccessUser(authentication, #userId)")
     @GetMapping("/user/{userId}")
-    @Cacheable(value = "userOrders", key = "#userId")
     public ResponseEntity<List<Order>> getOrdersByUserId(@PathVariable Long userId) {
-        System.out.println("Fetching orders for user: " + userId + " (cache miss)");
-
         List<Order> orders = orderService.getOrdersByUserIdOptimized(userId);
-
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(30, TimeUnit.SECONDS))
                 .body(orders);
