@@ -69,6 +69,12 @@
                     .filter(user -> passwordEncoder.matches(rawPassword, user.getPassword()));
         }
 
+        public boolean isAccountLocked(String email) {
+            return userRepository.findByEmail(email)
+                    .map(user -> user.getIsLocked() != null && user.getIsLocked())
+                    .orElse(false);
+        }
+
         public List<User> getAllUsers() {
             return userRepository.findAll();
         }
@@ -132,5 +138,23 @@
                 return true;
             }
             return false;
+        }
+
+        public boolean lockUser(Long userId) {
+            return userRepository.findById(userId)
+                    .map(user -> {
+                        user.setIsLocked(true);
+                        userRepository.save(user);
+                        return true;
+                    }).orElse(false);
+        }
+
+        public boolean unlockUser(Long userId) {
+            return userRepository.findById(userId)
+                    .map(user -> {
+                        user.setIsLocked(false);
+                        userRepository.save(user);
+                        return true;
+                    }).orElse(false);
         }
     }

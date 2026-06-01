@@ -103,4 +103,28 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
     }
+
+    // Only ADMIN can lock a user account
+    @PutMapping("/{id}/lock")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> lockUser(@PathVariable Long id) {
+        boolean locked = userService.lockUser(id);
+        if (locked) {
+            return ResponseEntity.ok().build();
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // Only ADMIN can unlock a user account
+    @PutMapping("/{id}/unlock")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> unlockUser(@PathVariable Long id) {
+        boolean unlocked = userService.unlockUser(id);
+        if (unlocked) {
+            return ResponseEntity.ok().build();
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

@@ -42,6 +42,11 @@ public class AuthController {
         String password = stringValue(loginRequest.get("password"));
         boolean enablePasskey = booleanValue(loginRequest.get("enablePasskey"));
 
+        if (userService.isAccountLocked(email)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Collections.singletonMap("message", "Your account is suspended. Please contact Support."));
+        }
+
         return userService.authenticateUser(email, password)
                 .map(user -> {
                     String token = jwtUtil.generateToken(user.getEmail(), user.getRole().toString());

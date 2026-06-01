@@ -52,6 +52,9 @@ public class User {
     @Version // For optimistic locking to handle concurrent updates gracefully
     private Long version;
 
+    @Column(nullable = false)
+    private Boolean isLocked = false; // Whether the user account is locked/suspended
+
     // One-to-Many relationship with orders.
     // 'mappedBy' indicates that the 'user' field in the Order entity owns the relationship.
     // FetchType.LAZY is used to prevent fetching all orders whenever a user is loaded, improving performance.
