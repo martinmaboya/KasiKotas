@@ -275,23 +275,23 @@ public class OrderController {
     }
 
     /**
-     * Validates the scheduled delivery time according to business rules
+     * Validates the scheduled time according to business rules (applies to both delivery and collection)
      */
     private void validateScheduledDeliveryTime(LocalDateTime scheduledTime) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime maxScheduleTime = now.plusDays(7);
 
         if (scheduledTime.isBefore(now)) {
-            throw new IllegalArgumentException("Scheduled delivery time must be in the future");
+            throw new IllegalArgumentException("Scheduled time must be in the future");
         }
 
         if (scheduledTime.isAfter(maxScheduleTime)) {
-            throw new IllegalArgumentException("Scheduled delivery can only be set up to 7 days in advance");
+            throw new IllegalArgumentException("Scheduled time can only be set up to 7 days in advance");
         }
 
         int hour = scheduledTime.getHour();
         if (hour < 18 || hour > 23) {
-            throw new IllegalArgumentException("Scheduled delivery must be between 18:00 and 23:59");
+            throw new IllegalArgumentException("Scheduled time must be between 18:00 and 23:59");
         }
     }
 }
