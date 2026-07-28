@@ -20,7 +20,7 @@ public class EmailService {
             CreateEmailOptions params = CreateEmailOptions.builder()
                     .from("KasiKotas <no-reply@kasikotas.co.za>")
                     .to(toEmail)
-                    .subject("Your KasiKotas Reset Code: " + otp)
+                    .subject("Reset your KasiKotas password")
                     .html(buildOtpEmailHtml(firstName, otp))
                     .build();
 
@@ -36,20 +36,20 @@ public class EmailService {
         return "<!DOCTYPE html>"
             + "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
             + "<style>"
-            + "body{margin:0;padding:20px;background:#f8f9fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#2d3748;}"
-            + ".container{max-width:480px;margin:auto;background:#ffffff;padding:32px;border-radius:8px;border:1px solid #e2e8f0;}"
-            + ".logo{font-size:24px;font-weight:800;color:#ff6b00;margin-bottom:24px;}"
-            + "h2{font-size:20px;margin:0 0 12px;color:#1a202c;}"
-            + "p{font-size:15px;line-height:1.5;margin:12px 0;color:#4a5568;}"
-            + ".otp{font-size:36px;font-weight:700;letter-spacing:6px;color:#1a202c;margin:20px 0;text-align:center;}"
-            + ".subtext{font-size:13px;color:#718096;margin-top:24px;line-height:1.4;}"
+            + "body{margin:0;padding:24px;background:#f8f9fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;}"
+            + ".container{max-width:440px;margin:auto;background:#fff;padding:32px;border-radius:10px;border:1px solid #eaeaea;}"
+            + ".logo{font-size:22px;font-weight:800;color:#ff6b00;margin-bottom:20px;}"
+            + "p{font-size:15px;line-height:1.6;margin:12px 0;color:#444;}"
+            + ".otp{font-size:38px;font-weight:800;letter-spacing:8px;color:#111;margin:24px 0;text-align:center;}"
+            + ".subtext{font-size:13px;color:#777;margin-top:24px;line-height:1.5;}"
             + "</style></head><body>"
             + "<div class='container'>"
             + "<div class='logo'>KasiKotas</div>"
-            + "<h2>Reset your password</h2>"
-            + "<p>Hi " + name + ", use this verification code to reset your password. It expires in 15 minutes.</p>"
+            + "<p>Hi " + name + ",</p>"
+            + "<p>A password reset request has been made for your KasiKotas account. Enter the verification code below to proceed:</p>"
             + "<div class='otp'>" + otp + "</div>"
-            + "<p class='subtext'>If you didn't request this, you can safely ignore this email. Never share this code with anyone.</p>"
+            + "<p>This code is valid for 15 minutes.</p>"
+            + "<p class='subtext'>If you didn't request a password reset, you can safely ignore this email.</p>"
             + "</div></body></html>";
     }
 }
