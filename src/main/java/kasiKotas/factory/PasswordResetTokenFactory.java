@@ -16,6 +16,7 @@ public class PasswordResetTokenFactory {
                 .expiresAt(now.plusMinutes(expiryMinutes))
                 .used(false)
                 .createdAt(now)
+                .resendAllowedAt(now.plusSeconds(30))
                 .build();
     }
 

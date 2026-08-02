@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,20 +48,33 @@ public class PasswordResetController {
         }
         
         try {
-            // Generate 6-digit OTP
-            String otp = generateOtp();
-            
-            // Create reset token with OTP
-            PasswordResetToken resetToken = PasswordResetTokenFactory.create(
-                user.get().getId(),
-                email,
-                15 // expiry in minutes
-            );
-            resetToken.setOtp(otp);
-            tokenRepository.save(resetToken);
-            
-            // Send OTP email
-            emailService.sendOtpEmail(email, user.get().getFirstName(), otp);
+            LocalDateTime now = LocalDateTime.now();
+
+            // Check for an existing valid token
+            Optional<PasswordResetToken> existing = tokenRepository
+                .findTopByEmailAndUsedFalseAndExpiresAtAfterOrderByCreatedAtDesc(email, now);
+
+            if (existing.isPresent()) {
+                PasswordResetToken existingToken = existing.get();
+                if (existingToken.getResendAllowedAt() != null && now.isBefore(existingToken.getResendAllowedAt())) {
+                    long secondsLeft = java.time.Duration.between(now, existingToken.getResendAllowedAt()).getSeconds();
+                    response.put("success", false);
+                    response.put("message", "Please wait before requesting a new OTP");
+                    response.put("retryAfterSeconds", secondsLeft);
+                    return ResponseEntity.status(429).body(response);
+                }
+                // Cooldown passed — resend the same OTP, reset the cooldown
+                existingToken.setResendAllowedAt(now.plusSeconds(30));
+                tokenRepository.save(existingToken);
+                emailService.sendOtpEmail(email, user.get().getFirstName(), existingToken.getOtp());
+            } else {
+                // No valid token — generate a new one
+                String otp = generateOtp();
+                PasswordResetToken resetToken = PasswordResetTokenFactory.create(user.get().getId(), email, 15);
+                resetToken.setOtp(otp);
+                tokenRepository.save(resetToken);
+                emailService.sendOtpEmail(email, user.get().getFirstName(), otp);
+            }
             
             response.put("success", true);
             response.put("message", "OTP has been sent to your email");
