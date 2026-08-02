@@ -10,6 +10,7 @@ import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -86,6 +87,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataConflict(DataIntegrityViolationException ignored, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, "Request conflicts with existing data.", "DATA_CONFLICT", request);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
+        // Log 5xx as errors, 4xx as warnings
+        if (status.is5xxServerError()) {
+            log.error("ResponseStatusException on {}: {}", request.getRequestURI(), ex.getReason(), ex);
+        } else {
+            log.warn("ResponseStatusException on {}: {}", request.getRequestURI(), ex.getReason());
+        }
+        String code = status.name().replace(" ", "_");
+        return build(status, ex.getReason(), code, request);
     }
 
     @ExceptionHandler(Exception.class)

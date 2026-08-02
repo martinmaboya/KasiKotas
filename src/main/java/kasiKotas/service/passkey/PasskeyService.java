@@ -364,14 +364,16 @@ public class PasskeyService {
 
     private void logRegistrationFailure(String label, Exception exception) {
         System.out.println("DEBUG finishRegistration failed [" + label + "]: " + exception.getClass().getName() + " - " + exception.getMessage());
-        Throwable cause = exception.getCause();
+        if (exception.getCause() != null) {
+            System.out.println("DEBUG finishRegistration root cause: " + exception.getCause().getClass().getName() + " - " + exception.getCause().getMessage());
+        }
+        Throwable cause = exception;
         int depth = 0;
-        while (cause != null && depth < 4) {
-            System.out.println("DEBUG finishRegistration cause[" + depth + "]: " + cause.getClass().getName() + " - " + cause.getMessage());
+        while (cause != null && depth < 6) {
+            System.out.println("DEBUG cause[" + depth + "]: " + cause.getClass().getName() + " - " + cause.getMessage());
             cause = cause.getCause();
             depth++;
         }
-        exception.printStackTrace();
     }
 
     private AssertionResult finishAssertion(
