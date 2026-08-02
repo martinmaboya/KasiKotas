@@ -47,43 +47,53 @@ public class PasswordResetController {
             return ResponseEntity.ok(response);
         }
         
-        try {
-            LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        Optional<PasswordResetToken> existing = tokenRepository
+            .findTopByEmailAndUsedFalseAndExpiresAtAfterOrderByCreatedAtDesc(email, now);
 
-            // Check for an existing valid token
-            Optional<PasswordResetToken> existing = tokenRepository
-                .findTopByEmailAndUsedFalseAndExpiresAtAfterOrderByCreatedAtDesc(email, now);
-
-            if (existing.isPresent()) {
-                PasswordResetToken existingToken = existing.get();
-                if (existingToken.getResendAllowedAt() != null && now.isBefore(existingToken.getResendAllowedAt())) {
-                    long secondsLeft = java.time.Duration.between(now, existingToken.getResendAllowedAt()).getSeconds();
-                    response.put("success", false);
-                    response.put("message", "Please wait before requesting a new OTP");
-                    response.put("retryAfterSeconds", secondsLeft);
-                    return ResponseEntity.status(429).body(response);
-                }
-                // Cooldown passed — resend the same OTP, reset the cooldown
-                existingToken.setResendAllowedAt(now.plusSeconds(30));
-                tokenRepository.save(existingToken);
-                emailService.sendOtpEmail(email, user.get().getFirstName(), existingToken.getOtp());
-            } else {
-                // No valid token — generate a new one
-                String otp = generateOtp();
-                PasswordResetToken resetToken = PasswordResetTokenFactory.create(user.get().getId(), email, 15);
-                resetToken.setOtp(otp);
-                tokenRepository.save(resetToken);
-                emailService.sendOtpEmail(email, user.get().getFirstName(), otp);
+        if (existing.isPresent()) {
+            PasswordResetToken existingToken = existing.get();
+            if (existingToken.getResendAllowedAt() != null && now.isBefore(existingToken.getResendAllowedAt())) {
+                long secondsLeft = Duration.between(now, existingToken.getResendAllowedAt()).getSeconds();
+                response.put("success", false);
+                response.put("message", "Please wait before requesting a new OTP");
+                response.put("retryAfterSeconds", secondsLeft);
+                return ResponseEntity.status(429).body(response);
             }
-            
-            response.put("success", true);
-            response.put("message", "OTP has been sent to your email");
-        } catch (Exception e) {
-            System.err.println("Error sending OTP: " + e.getMessage());
-            response.put("success", false);
-            response.put("message", "Failed to send OTP. Please try again later.");
-            return ResponseEntity.status(500).body(response);
+            // Cooldown passed — resend the same OTP, reset the cooldown
+            existingToken.setResendAllowedAt(now.plusSeconds(30));
+            tokenRepository.save(existingToken);
+            try {
+                emailService.sendOtpEmail(email, user.get().getFirstName(), existingToken.getOtp());
+            } catch (Exception e) {
+                // Roll back the cooldown reset so the user can retry immediately
+                existingToken.setResendAllowedAt(now);
+                tokenRepository.save(existingToken);
+                System.err.println("Error sending OTP: " + e.getMessage());
+                response.put("success", false);
+                response.put("message", "Failed to send OTP. Please try again later.");
+                return ResponseEntity.status(500).body(response);
+            }
+        } else {
+            // No valid token — generate a new one
+            String otp = generateOtp();
+            PasswordResetToken resetToken = PasswordResetTokenFactory.create(user.get().getId(), email, 15);
+            resetToken.setOtp(otp);
+            tokenRepository.save(resetToken);
+            try {
+                emailService.sendOtpEmail(email, user.get().getFirstName(), otp);
+            } catch (Exception e) {
+                // Email failed — delete the token so it doesn't linger as an orphan
+                tokenRepository.delete(resetToken);
+                System.err.println("Error sending OTP: " + e.getMessage());
+                response.put("success", false);
+                response.put("message", "Failed to send OTP. Please try again later.");
+                return ResponseEntity.status(500).body(response);
+            }
         }
+
+        response.put("success", true);
+        response.put("message", "OTP has been sent to your email");
         
         return ResponseEntity.ok(response);
     }
