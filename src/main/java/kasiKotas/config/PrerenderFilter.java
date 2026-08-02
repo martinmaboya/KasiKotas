@@ -27,27 +27,33 @@ public class PrerenderFilter implements Filter {
         String userAgent = req.getHeader("User-Agent");
 
         if (shouldShowPrerenderedPage(req, userAgent)) {
-            String fullUrl = req.getRequestURL().toString();
-            String prerenderUrl = PRERENDER_SERVICE_URL + fullUrl;
+            try {
+                String fullUrl = req.getRequestURL().toString();
+                String prerenderUrl = PRERENDER_SERVICE_URL + fullUrl;
 
-            HttpServletResponse res = (HttpServletResponse) response;
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(prerenderUrl).openConnection();
-            conn.setRequestProperty("User-Agent", userAgent);
-            conn.setRequestProperty("X-Prerender-Token", PRERENDER_TOKEN);
+                HttpServletResponse res = (HttpServletResponse) response;
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(prerenderUrl).openConnection();
+                conn.setRequestProperty("User-Agent", userAgent);
+                conn.setRequestProperty("X-Prerender-Token", PRERENDER_TOKEN);
+                conn.setDoInput(true);
+                conn.setRequestMethod("GET");
 
-            conn.setDoInput(true);
-            conn.setRequestMethod("GET");
-
-            res.setContentType("text/html");
-            res.setStatus(conn.getResponseCode());
-
-            try (var in = conn.getInputStream();
-                 var out = res.getOutputStream()) {
-                in.transferTo(out);
+                int status = conn.getResponseCode();
+                if (status >= 200 && status < 300) {
+                    res.setContentType("text/html");
+                    res.setStatus(status);
+                    try (var in = conn.getInputStream();
+                         var out = res.getOutputStream()) {
+                        in.transferTo(out);
+                    }
+                    return;
+                }
+                // Non-2xx from prerender — fall through to normal request handling
+            } catch (Exception e) {
+                // Prerender unavailable — fall through to normal request handling
             }
-        } else {
-            chain.doFilter(request, response);
         }
+        chain.doFilter(request, response);
     }
 
     private boolean shouldShowPrerenderedPage(HttpServletRequest req, String userAgent) {
