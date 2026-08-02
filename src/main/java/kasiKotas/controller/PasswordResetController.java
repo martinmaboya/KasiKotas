@@ -78,7 +78,6 @@ public class PasswordResetController {
             
             response.put("success", true);
             response.put("message", "OTP has been sent to your email");
-            System.out.println("OTP sent to " + email + ": " + otp); // For debugging
         } catch (Exception e) {
             System.err.println("Error sending OTP: " + e.getMessage());
             response.put("success", false);
