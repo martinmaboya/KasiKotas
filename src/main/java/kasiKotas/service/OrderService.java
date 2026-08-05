@@ -12,7 +12,7 @@ import kasiKotas.repository.UserRepository;
 import kasiKotas.repository.ProductRepository;
 import kasiKotas.repository.ExtraRepository;
 import kasiKotas.repository.ProductExtraRequirementRepository;
-// import kasiKotas.service.EmailService;
+import kasiKotas.service.EmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +57,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final ExtraRepository extraRepository;
     private final ProductExtraRequirementRepository productExtraRequirementRepository;
-    // private final EmailService emailService;
+    private final EmailService emailService;
     private final ProductService productService;
     private final BankDetailsService bankDetailsService; // Keep this for other potential uses, but not for setting EFT details in createOrder
     private final DailyOrderLimitService dailyOrderLimitService;
@@ -74,7 +74,7 @@ public class OrderService {
             ProductRepository productRepository,
             ExtraRepository extraRepository,
             ProductExtraRequirementRepository productExtraRequirementRepository,
-            // EmailService emailService,
+            EmailService emailService,
             ProductService productService,
             BankDetailsService bankDetailsService,
             DailyOrderLimitService dailyOrderLimitService,
@@ -86,6 +86,7 @@ public class OrderService {
         this.productRepository = productRepository;
         this.extraRepository = extraRepository;
         this.productExtraRequirementRepository = productExtraRequirementRepository;
+        this.emailService = emailService;
         this.productService = productService;
         this.bankDetailsService = bankDetailsService;
         this.dailyOrderLimitService = dailyOrderLimitService;
@@ -563,8 +564,20 @@ public class OrderService {
                         restoreInventoryForOrder(order);
                     }
 
-                    order.setStatus(newStatus); // Use the directly provided enum
+                    order.setStatus(newStatus);
                     Order saved = orderRepository.save(order);
+
+                    if (newStatus == Order.OrderStatus.READY && saved.getUser() != null) {
+                        try {
+                            emailService.sendOrderReadyEmail(
+                                saved.getUser().getEmail(),
+                                saved.getUser().getFirstName(),
+                                saved.getId()
+                            );
+                        } catch (Exception e) {
+                            log.error("Failed to send order ready email for order {}: {}", saved.getId(), e.getMessage());
+                        }
+                    }
 
                     // Initialize lazy relations before returning so serialization doesn't fail after tx closes.
                     if (saved.getUser() != null) {
