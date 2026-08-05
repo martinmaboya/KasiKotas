@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Spring Data JPA repository for the Order entity.
@@ -24,6 +25,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Custom query method: find all Orders by a specific User.
     // This leverages the Many-to-One relationship defined in the Order entity.
     List<Order> findByUser(User user);
+
+    Optional<Order> findByIdempotencyKey(String idempotencyKey);
 
     // Optimized query to fetch orders with all related data in one query to avoid N+1 queries
     // Only fetch orders with valid orderDate to exclude legacy data

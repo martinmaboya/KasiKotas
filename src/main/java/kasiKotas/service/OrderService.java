@@ -118,6 +118,16 @@ public class OrderService {
             throw new IllegalArgumentException("Order must contain at least one item.");
         }
 
+        // Idempotency: return existing order if this key was already processed
+        if (order.getIdempotencyKey() != null) {
+            Optional<Order> existing = orderRepository.findByIdempotencyKey(order.getIdempotencyKey());
+            if (existing.isPresent()) {
+                log.info("Duplicate order request for idempotency key {}, returning existing order {}",
+                        order.getIdempotencyKey(), existing.get().getId());
+                return existing.get();
+            }
+        }
+
         // Quick sold-out check without taking a lock to avoid concurrency noise when limit is zero.
         Optional<DailyOrderLimit> limitSnapshot = dailyOrderLimitService.getOrderLimit();
         if (limitSnapshot.isPresent() && limitSnapshot.get().getLimitValue() <= 0) {

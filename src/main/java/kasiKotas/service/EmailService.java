@@ -38,7 +38,7 @@ public class EmailService {
             + "<div style='max-width:440px;margin:auto;background:#fff;padding:32px;border-radius:10px;border:1px solid #eaeaea;'>"
             + "<div style='font-size:22px;font-weight:800;color:#ff6b00;margin-bottom:20px;'>KasiKotas</div>"
             + "<p style='font-size:15px;line-height:1.6;margin:12px 0;color:#444;'>Hi " + name + ",</p>"
-            + "<p style='font-size:15px;line-height:1.6;margin:12px 0;color:#444;'>Great news! Your order <strong>#" + orderId + "</strong> is ready for collection.</p>"
+            + "<p style='font-size:15px;line-height:1.6;margin:12px 0;color:#444;'>Your order <strong>#" + orderId + "</strong> is ready for collection.</p>"
             + "<div style='background:#fff8f3;border-left:4px solid #ff6b00;padding:16px 20px;border-radius:6px;margin:24px 0;'>"
             + "<p style='margin:0;font-size:14px;font-weight:600;color:#ff6b00;'>📍 Collection Point</p>"
             + "<p style='margin:8px 0 0;font-size:15px;color:#333;'>A Block, Ground Floor<br>Next to Room 046</p>"

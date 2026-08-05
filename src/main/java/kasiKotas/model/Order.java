@@ -118,6 +118,9 @@ public class Order {
     @JsonIgnoreProperties("order") // Ignore the 'order' field within the 'orderItems' list when serializing Order
     private List<OrderItem> orderItems;
 
+    @Column(name = "idempotency_key", unique = true)
+    private String idempotencyKey;
+
     @Version // For optimistic locking to handle concurrent updates gracefully
     private Long version;
 
