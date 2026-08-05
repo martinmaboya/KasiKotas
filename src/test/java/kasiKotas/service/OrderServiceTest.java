@@ -37,6 +37,7 @@ class OrderServiceTest {
     @Mock private ProductRepository productRepository;
     @Mock private ExtraRepository extraRepository;
     @Mock private ProductExtraRequirementRepository productExtraRequirementRepository;
+    @Mock private EmailService emailService;
     @Mock private ProductService productService;
     @Mock private BankDetailsService bankDetailsService;
     @Mock private DailyOrderLimitService dailyOrderLimitService;
@@ -52,6 +53,7 @@ class OrderServiceTest {
                 productRepository,
                 extraRepository,
                 productExtraRequirementRepository,
+                emailService,
                 productService,
                 bankDetailsService,
                 dailyOrderLimitService,
