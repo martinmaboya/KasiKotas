@@ -60,7 +60,7 @@ public class EmailService {
 
         try {
             CreateEmailOptions params = CreateEmailOptions.builder()
-                    .from("KasiKotas <no-reply@kasikotas.co.za>") // Works directly with your verified domain
+                    .from("KasiKotas <auth@kasikotas.co.za>") // Works directly with your verified domain
                     .to(toEmail)
                     .subject("Reset your KasiKotas password")
                     .text(buildOtpEmailText(name, otp)) // Plain text fallback
