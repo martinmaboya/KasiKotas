@@ -1,5 +1,6 @@
 package kasiKotas.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -7,22 +8,27 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Base64;
 
 @Component
 public class JwtUtil {
 
     private final SecretKey secretKey;
-    private final long jwtExpirationMs = 86400000; // 1 day
+    private final long accessTokenExpirationMs;
 
-    public JwtUtil(@Value("${jwt.secret}") String secret) {
+    public JwtUtil(@Value("${jwt.secret}") String secret,
+                   @Value("${jwt.access-token-expiration:900000}") long accessTokenExpirationMs) {
         this.secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret));
+        this.accessTokenExpirationMs = accessTokenExpirationMs;
     }
 
-    // Updated method to include role
+    public long getAccessTokenExpirationMs() {
+        return accessTokenExpirationMs;
+    }
+
     public String generateToken(String username, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
@@ -31,39 +37,41 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(username)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
+                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpirationMs))
                 .signWith(secretKey, SignatureAlgorithm.HS512)
                 .compact();
     }
 
-    // Keep the old method for backward compatibility
     public String generateToken(String username) {
-        return generateToken(username, "USER"); // Default role
+        return generateToken(username, "USER");
     }
 
     public String getUsernameFromToken(String token) {
-        return Jwts.parserBuilder()
+        Claims claims = Jwts.parserBuilder()
                 .setSigningKey(secretKey)
                 .build()
                 .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+                .getBody();
+        return claims.getSubject();
     }
 
-    // Add method to get role from token
     public String getRoleFromToken(String token) {
-        return Jwts.parserBuilder()
+        Claims claims = Jwts.parserBuilder()
                 .setSigningKey(secretKey)
                 .build()
                 .parseClaimsJws(token)
-                .getBody()
-                .get("role", String.class);
+                .getBody();
+        return claims.get("role", String.class);
     }
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token);
-            return true;
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(secretKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getExpiration() != null && claims.getExpiration().after(new Date());
         } catch (Exception e) {
             return false;
         }

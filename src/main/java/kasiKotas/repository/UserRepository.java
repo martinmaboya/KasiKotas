@@ -21,6 +21,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // Spring Data JPA will automatically generate the query for this method.
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByEmailIgnoreCase(String email);
+
     // You can add more custom query methods here if needed, for example:
     // List<User> findByRole(User.UserRole role);
     // List<User> findByFirstNameContainingIgnoreCase(String firstName);

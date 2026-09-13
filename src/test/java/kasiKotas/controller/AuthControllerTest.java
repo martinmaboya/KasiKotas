@@ -2,6 +2,7 @@ package kasiKotas.controller;
 
 import kasiKotas.model.User;
 import kasiKotas.security.JwtUtil;
+import kasiKotas.service.RefreshTokenService;
 import kasiKotas.service.UserService;
 import kasiKotas.service.passkey.PasskeyService;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
@@ -32,6 +35,9 @@ class AuthControllerTest {
     @Mock
     private PasskeyService passkeyService;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
     private AuthController authController;
 
     @BeforeEach
@@ -40,13 +46,15 @@ class AuthControllerTest {
         setField("userService", userService);
         setField("jwtUtil", jwtUtil);
         setField("passkeyService", passkeyService);
+        setField("refreshTokenService", refreshTokenService);
     }
 
     @Test
     void loginUserIncludesPasskeyEnrollmentWhenRequested() {
         User user = buildUser();
         when(userService.authenticateUser("user@example.com", "password")).thenReturn(Optional.of(user));
-        when(jwtUtil.generateToken(user.getEmail(), user.getRole().toString())).thenReturn("jwt-token");
+        when(refreshTokenService.issueTokenPair(user)).thenReturn(new RefreshTokenService.TokenPair(
+            "jwt-token", "refresh-token", null));
         when(passkeyService.hasPasskeyEnrollment(user.getId())).thenReturn(false);
         when(passkeyService.createRegistrationOptions(user)).thenReturn(Map.of(
                 "requestId", "request-123",
@@ -73,7 +81,8 @@ class AuthControllerTest {
     void loginUserSkipsPasskeyEnrollmentWhenNotRequested() {
         User user = buildUser();
         when(userService.authenticateUser("user@example.com", "password")).thenReturn(Optional.of(user));
-        when(jwtUtil.generateToken(user.getEmail(), user.getRole().toString())).thenReturn("jwt-token");
+        when(refreshTokenService.issueTokenPair(user)).thenReturn(new RefreshTokenService.TokenPair(
+            "jwt-token", "refresh-token", null));
 
         ResponseEntity<?> response = authController.loginUser(Map.of(
                 "email", "user@example.com",
@@ -83,6 +92,19 @@ class AuthControllerTest {
         assertEquals(200, response.getStatusCode().value());
         Map<?, ?> body = castMap(response.getBody());
         assertFalse(body.containsKey("passkeyEnrollment"));
+    }
+
+    @Test
+    void refreshDoesNotRequireAnAccessTokenPrincipal() {
+        RefreshTokenService.TokenPair tokenPair = new RefreshTokenService.TokenPair(
+                "new-access-token", "new-refresh-token", null);
+        when(refreshTokenService.rotateRefreshToken("old-refresh-token", null)).thenReturn(tokenPair);
+
+        ResponseEntity<?> response = authController.refreshToken(Map.of("refreshToken", "old-refresh-token"));
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("new-access-token", castMap(response.getBody()).get("accessToken"));
+        verify(userService, never()).getUserByEmail(org.mockito.ArgumentMatchers.anyString());
     }
 
     private User buildUser() {

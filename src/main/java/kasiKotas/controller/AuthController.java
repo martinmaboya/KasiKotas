@@ -3,6 +3,7 @@ package kasiKotas.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import kasiKotas.model.User;
+import kasiKotas.service.RefreshTokenService;
 import kasiKotas.service.UserService;
 import kasiKotas.security.JwtUtil;
 import kasiKotas.service.passkey.PasskeyService;
@@ -34,6 +35,9 @@ public class AuthController {
     private PasskeyService passkeyService;
 
     @Autowired
+    private RefreshTokenService refreshTokenService;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     @PostMapping("/login")
@@ -49,10 +53,15 @@ public class AuthController {
 
         return userService.authenticateUser(email, password)
                 .map(user -> {
-                    String token = jwtUtil.generateToken(user.getEmail(), user.getRole().toString());
+                    RefreshTokenService.TokenPair tokenPair = refreshTokenService.issueTokenPair(user);
+                    String token = tokenPair.accessToken();
                     Map<String, Object> response = new HashMap<>();
                     response.put("message", "Login successful");
                     response.put("token", token);
+                    response.put("accessToken", token);
+                    response.put("refreshToken", tokenPair.refreshToken());
+                    response.put("expiresIn", jwtUtil.getAccessTokenExpirationMs());
+                    response.put("refreshExpiresIn", refreshTokenService.getRefreshTokenExpirationMs());
                     response.put("id", user.getId());
                     response.put("firstName", user.getFirstName());
                     response.put("role", user.getRole());
@@ -76,6 +85,50 @@ public class AuthController {
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Collections.singletonMap("message", "Invalid credentials")));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
+        String refreshTokenValue = request == null ? null : request.get("refreshToken");
+
+        if (refreshTokenValue == null || refreshTokenValue.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Collections.singletonMap("message", "Refresh token is required"));
+        }
+
+        try {
+            RefreshTokenService.TokenPair tokenPair = refreshTokenService.rotateRefreshToken(refreshTokenValue, null);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Token refreshed successfully");
+            response.put("token", tokenPair.accessToken());
+            response.put("accessToken", tokenPair.accessToken());
+            response.put("refreshToken", tokenPair.refreshToken());
+            response.put("expiresIn", jwtUtil.getAccessTokenExpirationMs());
+            response.put("refreshExpiresIn", refreshTokenService.getRefreshTokenExpirationMs());
+            return ResponseEntity.ok(response);
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestBody(required = false) Map<String, String> request) {
+        String refreshTokenValue = request == null ? null : request.get("refreshToken");
+        String email = resolveAuthenticatedEmailIfPresent();
+
+        if (email != null) {
+            userService.getUserByEmail(email).ifPresent(user -> {
+                if (refreshTokenValue == null || refreshTokenValue.isBlank()) {
+                    refreshTokenService.revokeAllActiveTokensForUser(user);
+                } else {
+                    refreshTokenService.revokeCurrentRefreshToken(refreshTokenValue, user);
+                }
+            });
+        } else if (refreshTokenValue != null && !refreshTokenValue.isBlank()) {
+            refreshTokenService.revokeCurrentRefreshToken(refreshTokenValue, null);
+        }
+
+        return ResponseEntity.ok(Collections.singletonMap("message", "Logged out successfully"));
     }
 
     @PostMapping("/passkey/register/options")
@@ -119,6 +172,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Collections.singletonMap("message", "email is required"));
         }
+        email = email.trim().toLowerCase();
 
         System.out.println("DEBUG passkeyLoginOptions called: Origin=" + request.getHeader("Origin")
                 + ", RemoteAddr=" + request.getRemoteAddr() + ", URI=" + request.getRequestURI());
@@ -148,10 +202,15 @@ public class AuthController {
 
         User user = passkeyService.verifyLogin(requestId, toJsonNode(credentialObj));
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().toString());
+        RefreshTokenService.TokenPair tokenPair = refreshTokenService.issueTokenPair(user);
+        String token = tokenPair.accessToken();
         Map<String, Object> response = new HashMap<>();
         response.put("message", "Login successful");
         response.put("token", token);
+        response.put("accessToken", token);
+        response.put("refreshToken", tokenPair.refreshToken());
+        response.put("expiresIn", jwtUtil.getAccessTokenExpirationMs());
+        response.put("refreshExpiresIn", refreshTokenService.getRefreshTokenExpirationMs());
         response.put("id", user.getId());
         response.put("firstName", user.getFirstName());
         response.put("role", user.getRole());
@@ -180,9 +239,17 @@ public class AuthController {
     }
 
     private String resolveAuthenticatedEmail() {
+        String email = resolveAuthenticatedEmailIfPresent();
+        if (email == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return email;
+    }
+
+    private String resolveAuthenticatedEmailIfPresent() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+            return null;
         }
 
         Object principal = authentication.getPrincipal();
@@ -194,7 +261,7 @@ public class AuthController {
             return username;
         }
 
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        return null;
     }
 
     private String resolvePasskeyRegistrationEmail(Map<String, String> request) {
@@ -202,18 +269,18 @@ public class AuthController {
         if (authentication != null && authentication.isAuthenticated()) {
             Object principal = authentication.getPrincipal();
             if (principal instanceof UserDetails userDetails) {
-                return userDetails.getUsername();
+                return userDetails.getUsername().trim().toLowerCase();
             }
 
             if (principal instanceof String username && !"anonymousUser".equalsIgnoreCase(username)) {
-                return username;
+                return username.trim().toLowerCase();
             }
         }
 
         if (request != null) {
             String email = request.get("email");
             if (email != null && !email.isBlank()) {
-                return email.trim();
+                return email.trim().toLowerCase();
             }
         }
 

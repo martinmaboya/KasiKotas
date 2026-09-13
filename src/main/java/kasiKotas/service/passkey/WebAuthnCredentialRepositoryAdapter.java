@@ -37,7 +37,7 @@ public class WebAuthnCredentialRepositoryAdapter implements CredentialRepository
 
     @Override
     public Set<PublicKeyCredentialDescriptor> getCredentialIdsForUsername(String username) {
-        return userRepository.findByEmail(username)
+        return userRepository.findByEmailIgnoreCase(normalizeEmail(username))
                 .map(user -> passkeyCredentialRepository.findByUserId(user.getId()).stream()
                 .map(this::toPublicKeyCredentialDescriptor)
                 .flatMap(Optional::stream)
@@ -47,7 +47,7 @@ public class WebAuthnCredentialRepositoryAdapter implements CredentialRepository
 
     @Override
     public Optional<ByteArray> getUserHandleForUsername(String username) {
-        return userRepository.findByEmail(username)
+        return userRepository.findByEmailIgnoreCase(normalizeEmail(username))
                 .map(user -> new ByteArray(longToBytes(user.getId())));
     }
 
@@ -76,6 +76,10 @@ public class WebAuthnCredentialRepositoryAdapter implements CredentialRepository
 
     public List<PasskeyCredential> getByUserId(Long userId) {
         return passkeyCredentialRepository.findByUserId(userId);
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase();
     }
 
     private RegisteredCredential toRegisteredCredential(PasskeyCredential credential) {

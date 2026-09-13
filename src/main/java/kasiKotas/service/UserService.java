@@ -32,10 +32,12 @@
             if (!StringUtils.hasText(user.getEmail())) {
                 throw new IllegalArgumentException("Email cannot be empty.");
             }
-            if (!EMAIL_PATTERN.matcher(user.getEmail()).matches()) {
+            String normalizedEmail = normalizeEmail(user.getEmail());
+            user.setEmail(normalizedEmail);
+            if (!EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
                 throw new IllegalArgumentException("Invalid email format.");
             }
-            if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            if (userRepository.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
                 throw new IllegalArgumentException("User with this email already exists.");
             }
             if (!StringUtils.hasText(user.getPassword())) {
@@ -65,12 +67,12 @@
                 return Optional.empty();
             }
 
-            return userRepository.findByEmail(email)
+            return userRepository.findByEmailIgnoreCase(normalizeEmail(email))
                     .filter(user -> passwordEncoder.matches(rawPassword, user.getPassword()));
         }
 
         public boolean isAccountLocked(String email) {
-            return userRepository.findByEmail(email)
+            return userRepository.findByEmailIgnoreCase(normalizeEmail(email))
                     .map(user -> user.getIsLocked() != null && user.getIsLocked())
                     .orElse(false);
         }
@@ -87,7 +89,7 @@
             if (!StringUtils.hasText(email)) {
                 return Optional.empty();
             }
-            return userRepository.findByEmail(email);
+            return userRepository.findByEmailIgnoreCase(normalizeEmail(email));
         }
 
         public Optional<User> updateUser(Long id, User userDetails) {
@@ -99,14 +101,15 @@
                         if (!StringUtils.hasText(userDetails.getLastName())) {
                             throw new IllegalArgumentException("Last name cannot be empty.");
                         }
-                        if (StringUtils.hasText(userDetails.getEmail()) && !userDetails.getEmail().equals(existingUser.getEmail())) {
-                            if (!EMAIL_PATTERN.matcher(userDetails.getEmail()).matches()) {
+                        if (StringUtils.hasText(userDetails.getEmail()) && !normalizeEmail(userDetails.getEmail()).equals(existingUser.getEmail())) {
+                            String normalizedEmail = normalizeEmail(userDetails.getEmail());
+                            if (!EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
                                 throw new IllegalArgumentException("Invalid email format for update.");
                             }
-                            if (userRepository.findByEmail(userDetails.getEmail()).isPresent()) {
+                            if (userRepository.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
                                 throw new IllegalArgumentException("New email already in use by another user.");
                             }
-                            existingUser.setEmail(userDetails.getEmail());
+                            existingUser.setEmail(normalizedEmail);
                         }
                         if (userDetails.getRole() != null) {
                             existingUser.setRole(userDetails.getRole());
@@ -138,6 +141,10 @@
                 return true;
             }
             return false;
+        }
+
+        private String normalizeEmail(String email) {
+            return email == null ? null : email.trim().toLowerCase();
         }
 
         public boolean lockUser(Long userId) {

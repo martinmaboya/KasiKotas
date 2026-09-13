@@ -3,6 +3,7 @@ package kasiKotas.service.passkey;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.yubico.webauthn.AssertionRequest;
 import com.yubico.webauthn.AssertionResult;
 import com.yubico.webauthn.FinishAssertionOptions;
@@ -62,10 +63,12 @@ public class PasskeyService {
         this.passkeyCredentialRepository = passkeyCredentialRepository;
         this.challengeStore = challengeStore;
         this.objectMapper = objectMapper;
+        this.objectMapper.registerModule(new Jdk8Module());
     }
 
     public Map<String, Object> createRegistrationOptions(String email) {
-        User user = userRepository.findByEmail(email)
+        String normalizedEmail = normalizeEmail(email);
+        User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         return createRegistrationOptions(user);
@@ -178,7 +181,8 @@ public class PasskeyService {
     }
 
     public Map<String, Object> createLoginOptions(String email) {
-        User user = userRepository.findByEmail(email)
+        String normalizedEmail = normalizeEmail(email);
+        User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         System.out.println("DEBUG createLoginOptions user found id=" + user.getId() + ", email=" + user.getEmail());
@@ -206,6 +210,13 @@ public class PasskeyService {
         response.put("requestId", requestId);
         response.put("publicKey", normalizePublicKeyOptions(assertionRequest.getPublicKeyCredentialRequestOptions()));
         return response;
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+        return email.trim().toLowerCase();
     }
 
     @SuppressWarnings("unchecked")
@@ -262,8 +273,8 @@ public class PasskeyService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Passkey assertion verification failed");
         }
 
-        String userEmail = result.getUsername();
-        User user = userRepository.findByEmail(userEmail)
+        String userEmail = normalizeEmail(result.getUsername());
+        User user = userRepository.findByEmailIgnoreCase(userEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         PasskeyCredential storedCredential = passkeyCredentialRepository.findByCredentialId(result.getCredentialId().getBase64Url())
