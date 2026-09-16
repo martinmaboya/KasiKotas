@@ -88,6 +88,7 @@ public class YocoPaymentService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(yocoSecretKey);
+        headers.set("Idempotency-Key", "order-" + order.getId());
 
         // 5. Build HTTP Request Body
         Map<String, Object> requestBody = new HashMap<>();
@@ -103,7 +104,7 @@ public class YocoPaymentService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-        String checkoutEndpoint = yocoBaseUrl.replaceAll("/+$", "") + "/api/checkouts";
+        String checkoutEndpoint = yocoApiBaseUrl() + "/api/checkouts";
 
         log.info("Sending Yoco checkout creation request for order ID: {}, amount in cents: {}", order.getId(), amountInCents);
 
@@ -146,5 +147,18 @@ public class YocoPaymentService {
             log.error("Failed to create Yoco checkout session for order ID: {}. Error: {}", order.getId(), ex.getMessage(), ex);
             throw new RuntimeException("Could not initiate Yoco payment: " + ex.getMessage(), ex);
         }
+    }
+
+    private String yocoApiBaseUrl() {
+        String configuredBaseUrl = yocoBaseUrl == null ? "" : yocoBaseUrl.trim();
+
+        if (configuredBaseUrl.isBlank()
+            || configuredBaseUrl.contains("online.yoco.com")
+            || configuredBaseUrl.contains("api.yoco.com")) {
+            log.warn("Ignoring legacy Yoco base URL configuration and using payments.yoco.com");
+            return "https://payments.yoco.com";
+        }
+
+        return configuredBaseUrl.replaceAll("/+$", "");
     }
 }
