@@ -34,7 +34,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "WHERE o.user.id = :userId " +
            "AND o.orderDate >= :since " +
            "AND o.totalAmount = :totalAmount " +
-           "AND o.status <> kasiKotas.model.Order.OrderStatus.CANCELLED")
+           "AND o.status <> 'CANCELLED'")
         List<Order> findRecentPotentialDuplicates(
             @Param("userId") Long userId,
             @Param("since") LocalDateTime since,
