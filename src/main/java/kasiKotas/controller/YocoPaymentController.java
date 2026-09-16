@@ -34,6 +34,11 @@ public class YocoPaymentController {
             throw new IllegalArgumentException("orderId is required.");
         }
 
+        if (request.getSuccessUrl() == null || request.getSuccessUrl().isBlank()
+                || request.getCancelUrl() == null || request.getCancelUrl().isBlank()) {
+            throw new IllegalArgumentException("successUrl and cancelUrl are required.");
+        }
+
         String redirectUrl = yocoPaymentService.createCheckoutSession(
                 request.getOrderId(),
                 request.getSuccessUrl(),

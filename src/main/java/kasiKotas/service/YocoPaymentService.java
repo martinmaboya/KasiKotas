@@ -36,9 +36,6 @@ public class YocoPaymentService {
     @Value("${yoco.base-url}")
     private String yocoBaseUrl;
 
-    @Value("${yoco.base-url}")
-    private String baseUrl;
-
     /**
      * Initiates a hosted checkout session with Yoco for the given order ID.
      */
@@ -62,6 +59,14 @@ public class YocoPaymentService {
                 .orElseThrow(() ->
                         new IllegalArgumentException("Order not found with ID: " + orderId)
                 );
+
+        if (order.getPaymentMethod() != PaymentMethod.YOCO) {
+            throw new IllegalArgumentException("Yoco checkout is only available for Yoco orders.");
+        }
+
+        if (order.getTotalAmount() == null || order.getTotalAmount() <= 0) {
+            throw new IllegalArgumentException("Yoco checkout amount must be greater than zero.");
+        }
 
         // 2. Fetch or create PENDING Payment entity
         Payment payment = paymentRepository.findByOrderId(order.getId())
@@ -98,7 +103,7 @@ public class YocoPaymentService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-        String checkoutEndpoint = yocoBaseUrl + "/api/checkouts";
+        String checkoutEndpoint = yocoBaseUrl.replaceAll("/+$", "") + "/api/checkouts";
 
         log.info("Sending Yoco checkout creation request for order ID: {}, amount in cents: {}", order.getId(), amountInCents);
 
