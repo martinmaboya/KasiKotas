@@ -1,75 +1,84 @@
 // src/main/java/kasiKotas/model/Product.java
-package kasiKotas.model; // This specifies the package for this class
+package kasiKotas.model;
 
-import jakarta.persistence.*; // JPA annotations for database mapping
-import lombok.Data; // Lombok for boilerplate code reduction
+import jakarta.persistence.*;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import lombok.Builder; // Import for Builder annotation
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Import for JsonIgnoreProperties
+import lombok.Builder;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
  * Represents a single product (Kota) in the e-commerce system.
- * This is a JPA Entity, meaning it maps directly to a table in your MySQL database.
  *
- * It uses Lombok annotations for convenience, automatically generating:
- * - Getters and setters for all fields (@Data)
- * - A no-argument constructor (@NoArgsConstructor)
- * - A constructor with all arguments (@AllArgsConstructor)
- *
- * @JsonIgnoreProperties is added to prevent serialization issues when Hibernate
- * lazy-loads proxy objects (e.g., if a Product is fetched as a proxy within an OrderItem
- * and then directly serialized without being fully initialized).
+ * Images are referenced using imageUrl rather than storing the actual
+ * image bytes inside the database. This keeps product API responses
+ * lightweight and improves application performance.
  */
-@Entity // Marks this class as a JPA entity. Hibernate will recognize it and map it to a database table.
-@Table(name = "products") // Specifies the actual table name in the database. It will be "products".
-@Data // Lombok: Generates boilerplate code (getters, setters, toString, equals, hashCode)
-@NoArgsConstructor // Lombok: Generates a public no-argument constructor, required by JPA.
-@AllArgsConstructor // Lombok: Generates a constructor with all fields, useful for creating instances with data.
-@Builder // Lombok: Enables builder pattern
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // NEW: Ignore Hibernate's internal proxy fields during JSON serialization
+@Entity
+@Table(name = "products")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Product {
 
-    @Id // Marks this field as the primary key of the entity.
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // Configures the primary key to be auto-incremented by the database.
-    // IDENTITY is suitable for MySQL.
-    private Long id; // Unique identifier for each product.
-
-    @Column(nullable = false) // Specifies that this database column cannot contain NULL values.
-    private String name; // The name of the Kota (e.g., "Classic Kota", "Vegetarian Kota"). This field is mandatory.
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false)
-    private String description; // A detailed description of the Kota's ingredients and flavor. This field is mandatory.
+    private String name;
 
     @Column(nullable = false)
-    private Double price; // The price of the Kota. This field is mandatory.
-
-    private String imageUrl; // An optional URL to an image of the Kota. Can be null.
+    private String description;
 
     @Column(nullable = false)
-    private Integer stock; // The quantity of this Kota currently available in stock. This field is mandatory.
+    private Double price;
 
+    /**
+     * URL of the product image.
+     *
+     * The actual image should be hosted externally (for example,
+     * on a CDN/image hosting service) rather than stored in MySQL.
+     */
+    private String imageUrl;
+
+    @Column(nullable = false)
+    private Integer stock;
+
+    /**
+     * Computed stock used for display.
+     * Not stored in the database.
+     */
     @Transient
-    private Integer effectiveStock; // Computed stock used for display (0 when blocked by required extras)
+    private Integer effectiveStock;
 
+    /**
+     * Computed availability.
+     * Not stored in the database.
+     */
     @Transient
-    private Boolean available; // Computed availability (product stock + required extras)
+    private Boolean available;
 
+    /**
+     * Computed average review rating.
+     * Not stored in the database.
+     */
     @Transient
-    private Double averageRating; // Computed average review rating for display
+    private Double averageRating;
 
+    /**
+     * Computed total number of reviews.
+     * Not stored in the database.
+     */
     @Transient
-    private Long totalReviews; // Computed total number of reviews for display
+    private Long totalReviews;
 
-    @Lob
-    @Basic(fetch = FetchType.LAZY)
-    private byte[] image; // NEW: Image data for the product, stored as a blob in the database.
-
-     private String imageType; // MIME type of the image (e.g., image/jpeg)
-
-     @Version // For optimistic locking to prevent concurrent updates from silently overwriting changes
-     private Long version;
-
-     // Note: Lombok automatically generates the getters and setters, so you don't
-     // need to write them manually in this file. For example, getName(), setName(String name), etc.
+    /**
+     * Optimistic locking version.
+     */
+    @Version
+    private Long version;
 }

@@ -5,27 +5,23 @@ import kasiKotas.model.Product;
 import kasiKotas.repository.ProductExtraRequirementRepository;
 import kasiKotas.repository.ProductRepository;
 import kasiKotas.repository.ReviewRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile; // For handling file uploads
+import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID; // For generating unique filenames
 import java.util.stream.Collectors;
 
 /**
- * Service layer for managing Product (Kota) related business logic.
- * This class orchestrates operations between the Controller and the Repository.
- * It's now updated to handle image uploads for products.
+ * Service layer for managing Product related business logic.
+ *
+ * Product images are referenced through imageUrl instead of being stored
+ * as binary data inside the database.
  */
 @Service
 @Transactional
@@ -35,183 +31,274 @@ public class ProductService {
     private final ProductExtraRequirementRepository productExtraRequirementRepository;
     private final ReviewRepository reviewRepository;
 
-    // Define the upload directory for product images
-    // IMPORTANT: In a real application, this should be outside the compiled JAR/WAR
-    // and ideally on a dedicated file storage solution (e.g., S3, GCS).
-    // For local development, we'll create a folder in the project root or a temp dir.
-    // Ensure this directory exists and is writable by the application.
-    private final Path imageStorageLocation = Paths.get("uploads/product-images").toAbsolutePath().normalize();
-
     @Autowired
-    public ProductService(ProductRepository productRepository,
-                          ProductExtraRequirementRepository productExtraRequirementRepository,
-                          ReviewRepository reviewRepository) {
+    public ProductService(
+            ProductRepository productRepository,
+            ProductExtraRequirementRepository productExtraRequirementRepository,
+            ReviewRepository reviewRepository) {
+
         this.productRepository = productRepository;
         this.productExtraRequirementRepository = productExtraRequirementRepository;
         this.reviewRepository = reviewRepository;
-        // Create the directory if it doesn't exist when the service is initialized
-        try {
-            Files.createDirectories(this.imageStorageLocation);
-            System.out.println("Image storage directory created at: " + this.imageStorageLocation);
-        } catch (IOException e) {
-            throw new RuntimeException("Could not create image storage directory!", e);
-        }
     }
 
     /**
      * Retrieves all products from the database.
-     * @return A list of all Product objects.
+     *
+     * Images are NOT loaded from the database because products now
+     * contain only an imageUrl.
      */
     public List<Product> getAllProducts() {
+
         List<Product> products = productRepository.findAll();
-        Map<Long, ReviewRepository.ProductReviewSummaryProjection> reviewSummaryByProductId = getReviewSummaryByProductId(products);
+
+        Map<Long, ReviewRepository.ProductReviewSummaryProjection> reviewSummaryByProductId =
+                getReviewSummaryByProductId(products);
 
         return products.stream()
-                .map(product -> toResponseProduct(product, reviewSummaryByProductId.get(product.getId())))
+                .map(product ->
+                        toResponseProduct(
+                                product,
+                                reviewSummaryByProductId.get(product.getId())
+                        )
+                )
                 .toList();
     }
 
     /**
-     * Retrieves a product by its ID.
-     * @param id The ID of the product to retrieve.
-     * @return An Optional containing the Product if found, or empty if not found.
+     * Retrieves a single product by ID.
      */
     public Optional<Product> getProductById(Long id) {
+
         return productRepository.findById(id)
                 .map(product -> {
+
                     List<ReviewRepository.ProductReviewSummaryProjection> summaries =
-                            reviewRepository.findReviewSummariesByProductIds(List.of(product.getId()));
-                    ReviewRepository.ProductReviewSummaryProjection summary = summaries.isEmpty() ? null : summaries.get(0);
+                            reviewRepository.findReviewSummariesByProductIds(
+                                    List.of(product.getId())
+                            );
+
+                    ReviewRepository.ProductReviewSummaryProjection summary =
+                            summaries.isEmpty() ? null : summaries.get(0);
+
                     return toResponseProduct(product, summary);
                 });
     }
 
     /**
-     * Creates a new product, now including an option for image upload.
-     * If an image file is provided, it will be saved to disk and its path stored.
-     * @param product The Product object to save (contains name, description, price, stock).
-     * @param imageFile The MultipartFile representing the uploaded image (can be null).
-     * @return The saved Product object.
-     * @throws IllegalArgumentException if product details are invalid or image upload fails.
+     * Creates a new product.
+     *
+     * The uploaded image is NOT stored as a database BLOB.
+     *
+     * IMPORTANT:
+     * For now, if an imageFile is provided, its URL must be handled by
+     * the controller/upload layer or another image-storage service.
      */
     public Product createProduct(Product product, MultipartFile imageFile) {
-        // --- Business logic and validation for product details ---
+
+        // Validate product name
         if (!StringUtils.hasText(product.getName())) {
             throw new IllegalArgumentException("Product name cannot be empty.");
         }
+
+        // Validate description
         if (!StringUtils.hasText(product.getDescription())) {
             throw new IllegalArgumentException("Product description cannot be empty.");
         }
+
+        // Validate price
         if (product.getPrice() == null || product.getPrice() <= 0) {
             throw new IllegalArgumentException("Product price must be positive.");
         }
+
+        // Validate stock
         if (product.getStock() == null || product.getStock() < 0) {
             throw new IllegalArgumentException("Product stock cannot be negative.");
         }
-        // -----------------------------------------------------------------
 
-        // Handle image upload if a file is provided
+        /*
+         * We intentionally do NOT do:
+         *
+         * product.setImage(imageFile.getBytes());
+         *
+         * Images are no longer stored in the database.
+         *
+         * imageFile is currently accepted so the controller/API does not
+         * need to be changed immediately. Image hosting can be connected
+         * next.
+         */
         if (imageFile != null && !imageFile.isEmpty()) {
-            if (imageFile.getSize() > 20 * 1024 * 1024) { // 20MB limit
-                throw new IllegalArgumentException("Image file size must not exceed 20MB.");
-            }
-            try {
-                product.setImage(imageFile.getBytes());
-                product.setImageType(imageFile.getContentType());
-            } catch (IOException e) {
-                throw new IllegalArgumentException("Failed to store image: " + e.getMessage(), e);
+
+            if (imageFile.getSize() > 20 * 1024 * 1024) {
+                throw new IllegalArgumentException(
+                        "Image file size must not exceed 20MB."
+                );
             }
         }
-        // Remove imageUrl logic, as we now store the image as a blob
-        product.setImageUrl(null);
+
         return productRepository.save(product);
     }
 
     /**
-     * Updates an existing product, now with optional image upload.
-     * If a new image file is provided, it replaces the old one.
-     * If imageFile is null, the existing imageUrl is retained.
-     * @param id The ID of the product to update.
-     * @param productDetails The updated Product object.
-     * @param imageFile The new image file (can be null).
-     * @return An Optional containing the updated Product if found, or empty if not found.
-     * @throws IllegalArgumentException if product details are invalid or image upload fails.
+     * Updates an existing product.
+     *
+     * If imageFile is supplied, it is validated but is not stored
+     * inside the database.
      */
-    public Optional<Product> updateProduct(Long id, Product productDetails, MultipartFile imageFile) {
+    public Optional<Product> updateProduct(
+            Long id,
+            Product productDetails,
+            MultipartFile imageFile) {
+
         return productRepository.findById(id)
                 .map(existingProduct -> {
+
+                    // Validate name
                     if (!StringUtils.hasText(productDetails.getName())) {
-                        throw new IllegalArgumentException("Product name cannot be empty.");
+                        throw new IllegalArgumentException(
+                                "Product name cannot be empty."
+                        );
                     }
+
+                    // Validate description
                     if (!StringUtils.hasText(productDetails.getDescription())) {
-                        throw new IllegalArgumentException("Product description cannot be empty.");
+                        throw new IllegalArgumentException(
+                                "Product description cannot be empty."
+                        );
                     }
-                    if (productDetails.getPrice() == null || productDetails.getPrice() <= 0) {
-                        throw new IllegalArgumentException("Updated product price must be positive.");
+
+                    // Validate price
+                    if (productDetails.getPrice() == null
+                            || productDetails.getPrice() <= 0) {
+
+                        throw new IllegalArgumentException(
+                                "Updated product price must be positive."
+                        );
                     }
-                    if (productDetails.getStock() == null || productDetails.getStock() < 0) {
-                        throw new IllegalArgumentException("Updated product stock cannot be negative.");
+
+                    // Validate stock
+                    if (productDetails.getStock() == null
+                            || productDetails.getStock() < 0) {
+
+                        throw new IllegalArgumentException(
+                                "Updated product stock cannot be negative."
+                        );
                     }
+
+                    // Update normal product fields
                     existingProduct.setName(productDetails.getName());
                     existingProduct.setDescription(productDetails.getDescription());
                     existingProduct.setPrice(productDetails.getPrice());
                     existingProduct.setStock(productDetails.getStock());
+
+                    /*
+                     * Image handling:
+                     *
+                     * We no longer save image bytes to MySQL.
+                     *
+                     * The imageUrl supplied with productDetails is preserved.
+                     */
+                    if (productDetails.getImageUrl() != null) {
+                        existingProduct.setImageUrl(
+                                productDetails.getImageUrl()
+                        );
+                    }
+
+                    // Validate uploaded image if one was supplied
                     if (imageFile != null && !imageFile.isEmpty()) {
-                        if (imageFile.getSize() > 20 * 1024 * 1024) { // 20MB limit
-                            throw new IllegalArgumentException("Image file size must not exceed 20MB.");
-                        }
-                        try {
-                            existingProduct.setImage(imageFile.getBytes());
-                            existingProduct.setImageType(imageFile.getContentType());
-                        } catch (IOException e) {
-                            throw new IllegalArgumentException("Failed to update image: " + e.getMessage(), e);
+
+                        if (imageFile.getSize() > 20 * 1024 * 1024) {
+                            throw new IllegalArgumentException(
+                                    "Image file size must not exceed 20MB."
+                            );
                         }
                     }
-                    // Remove imageUrl logic
-                    existingProduct.setImageUrl(null);
+
                     return productRepository.save(existingProduct);
                 });
     }
 
-    public Optional<Product> updateProductPartial(Long id, Product updates) {
+    /**
+     * Partially updates an existing product.
+     */
+    public Optional<Product> updateProductPartial(
+            Long id,
+            Product updates) {
+
         return productRepository.findById(id)
                 .map(existingProduct -> {
+
                     boolean hasUpdates = false;
 
+                    // Update name
                     if (updates.getName() != null) {
+
                         if (!StringUtils.hasText(updates.getName())) {
-                            throw new IllegalArgumentException("Product name cannot be empty.");
+                            throw new IllegalArgumentException(
+                                    "Product name cannot be empty."
+                            );
                         }
+
                         existingProduct.setName(updates.getName());
                         hasUpdates = true;
                     }
 
+                    // Update description
                     if (updates.getDescription() != null) {
+
                         if (!StringUtils.hasText(updates.getDescription())) {
-                            throw new IllegalArgumentException("Product description cannot be empty.");
+                            throw new IllegalArgumentException(
+                                    "Product description cannot be empty."
+                            );
                         }
-                        existingProduct.setDescription(updates.getDescription());
+
+                        existingProduct.setDescription(
+                                updates.getDescription()
+                        );
+
                         hasUpdates = true;
                     }
 
+                    // Update price
                     if (updates.getPrice() != null) {
+
                         if (updates.getPrice() <= 0) {
-                            throw new IllegalArgumentException("Updated product price must be positive.");
+                            throw new IllegalArgumentException(
+                                    "Updated product price must be positive."
+                            );
                         }
+
                         existingProduct.setPrice(updates.getPrice());
                         hasUpdates = true;
                     }
 
+                    // Update stock
                     if (updates.getStock() != null) {
+
                         if (updates.getStock() < 0) {
-                            throw new IllegalArgumentException("Updated product stock cannot be negative.");
+                            throw new IllegalArgumentException(
+                                    "Updated product stock cannot be negative."
+                            );
                         }
+
                         existingProduct.setStock(updates.getStock());
                         hasUpdates = true;
                     }
 
+                    // Update image URL
+                    if (updates.getImageUrl() != null) {
+
+                        existingProduct.setImageUrl(
+                                updates.getImageUrl()
+                        );
+
+                        hasUpdates = true;
+                    }
+
                     if (!hasUpdates) {
-                        throw new IllegalArgumentException("No updatable fields provided.");
+                        throw new IllegalArgumentException(
+                                "No updatable fields provided."
+                        );
                     }
 
                     return productRepository.save(existingProduct);
@@ -220,110 +307,105 @@ public class ProductService {
 
     /**
      * Deletes a product by its ID.
-     * @param id The ID of the product to delete.
-     * @return true if the product was found and deleted, false otherwise.
      */
     public boolean deleteProduct(Long id) {
-        Optional<Product> productOptional = productRepository.findById(id);
+
+        Optional<Product> productOptional =
+                productRepository.findById(id);
+
         if (productOptional.isPresent()) {
-            Product product = productOptional.get();
-            // Optional: Delete the associated image file from storage
-            // deleteProductImage(product.getImageUrl());
+
             productRepository.deleteById(id);
+
             return true;
         }
+
         return false;
     }
 
     /**
-     * Decreases stock atomically to avoid overselling during concurrent orders.
-     * @param productId The ID of the product.
-     * @param quantity The quantity to deduct from stock.
-     * @return true when stock was successfully decremented, false when insufficient stock/product missing.
+     * Decreases stock atomically to avoid overselling.
      */
-    public boolean decreaseStock(Long productId, int quantity) {
+    public boolean decreaseStock(
+            Long productId,
+            int quantity) {
+
         if (quantity <= 0) {
-            throw new IllegalArgumentException("Quantity must be greater than zero.");
+            throw new IllegalArgumentException(
+                    "Quantity must be greater than zero."
+            );
         }
-        int updatedRows = productRepository.decrementStockIfAvailable(productId, quantity);
+
+        int updatedRows =
+                productRepository.decrementStockIfAvailable(
+                        productId,
+                        quantity
+                );
+
         return updatedRows == 1;
     }
 
     /**
-     * Atomically increases stock when an order is cancelled or deleted.
-     * @param productId the product ID
-     * @param quantity the quantity to restore
-     * @return true when stock was restored successfully
+     * Atomically increases stock when an order is cancelled
+     * or deleted.
      */
-    public boolean increaseStock(Long productId, int quantity) {
+    public boolean increaseStock(
+            Long productId,
+            int quantity) {
+
         if (quantity <= 0) {
-            throw new IllegalArgumentException("Quantity must be greater than zero.");
+            throw new IllegalArgumentException(
+                    "Quantity must be greater than zero."
+            );
         }
-        int updatedRows = productRepository.incrementStock(productId, quantity);
+
+        int updatedRows =
+                productRepository.incrementStock(
+                        productId,
+                        quantity
+                );
+
         return updatedRows == 1;
     }
 
     /**
-     * Saves an uploaded product image to the configured storage location.
-     * Generates a unique filename to prevent collisions.
-     * @param file The MultipartFile received from the client.
-     * @return The unique filename generated and saved.
-     * @throws IOException If there's an error saving the file.
-     * @throws IllegalArgumentException If the file is empty or filename is invalid.
+     * Converts the database Product into the response Product.
+     *
+     * IMPORTANT:
+     * No image bytes are copied here anymore.
+     *
+     * Only imageUrl is returned.
      */
-    private String saveProductImage(MultipartFile file) throws IOException {
-        String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
-        if (originalFileName.contains("..")) {
-            throw new IllegalArgumentException("Filename contains invalid path sequence " + originalFileName);
-        }
-        if (file.isEmpty()) {
-            throw new IllegalArgumentException("Failed to store empty file " + originalFileName);
-        }
+    private Product toResponseProduct(
+            Product source,
+            ReviewRepository.ProductReviewSummaryProjection reviewSummary) {
 
-        // Generate a unique filename to prevent overwriting existing files
-        String fileExtension = "";
-        int dotIndex = originalFileName.lastIndexOf('.');
-        if (dotIndex > 0 && dotIndex < originalFileName.length() - 1) {
-            fileExtension = originalFileName.substring(dotIndex);
-        }
-        String uniqueFileName = UUID.randomUUID().toString() + fileExtension;
-        Path targetLocation = this.imageStorageLocation.resolve(uniqueFileName);
+        boolean hasRequiredExtraShortage =
+                productExtraRequirementRepository
+                        .hasInsufficientRequiredExtra(source.getId());
 
-        // Copy file to the target location, replacing existing file if it has the same name
-        Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+        boolean availableByOwnStock =
+                source.getStock() != null
+                        && source.getStock() > 0;
 
-        return uniqueFileName;
-    }
-
-    /**
-     * Optional: Deletes a product image from storage based on its relative URL.
-     * This method would be called when a product is deleted or its image is updated.
-     * @param imageUrl The relative URL of the image (e.g., "/product-images/unique-id.png").
-     */
-    private void deleteProductImage(String imageUrl) {
-        if (imageUrl != null && imageUrl.startsWith("/product-images/")) {
-            String fileName = imageUrl.substring("/product-images/".length());
-            Path filePath = this.imageStorageLocation.resolve(fileName);
-            try {
-                Files.deleteIfExists(filePath);
-                System.out.println("Deleted image: " + filePath);
-            } catch (IOException e) {
-                System.err.println("Could not delete image file: " + filePath + " - " + e.getMessage());
-                // Log the error, but don't prevent the main operation (product deletion/update)
-            }
-        }
-    }
-
-    private Product toResponseProduct(Product source, ReviewRepository.ProductReviewSummaryProjection reviewSummary) {
-        boolean hasRequiredExtraShortage = productExtraRequirementRepository.hasInsufficientRequiredExtra(source.getId());
-        boolean availableByOwnStock = source.getStock() != null && source.getStock() > 0;
-        boolean available = availableByOwnStock && !hasRequiredExtraShortage;
+        boolean available =
+                availableByOwnStock
+                        && !hasRequiredExtraShortage;
 
         double averageRating = 0.0;
         long totalReviews = 0L;
+
         if (reviewSummary != null) {
-            averageRating = reviewSummary.getAverageRating() == null ? 0.0 : reviewSummary.getAverageRating();
-            totalReviews = reviewSummary.getTotalReviews() == null ? 0L : reviewSummary.getTotalReviews();
+
+            averageRating =
+                    reviewSummary.getAverageRating() == null
+                            ? 0.0
+                            : reviewSummary.getAverageRating();
+
+            totalReviews =
+                    reviewSummary.getTotalReviews() == null
+                            ? 0L
+                            : reviewSummary.getTotalReviews();
         }
 
         Product response = Product.builder()
@@ -333,28 +415,49 @@ public class ProductService {
                 .price(source.getPrice())
                 .imageUrl(source.getImageUrl())
                 .stock(source.getStock())
-                .image(source.getImage())
-                .imageType(source.getImageType())
                 .version(source.getVersion())
                 .build();
+
         response.setAvailable(available);
-        response.setEffectiveStock(available ? source.getStock() : 0);
-        response.setAverageRating(Math.round(averageRating * 10.0) / 10.0);
+
+        response.setEffectiveStock(
+                available
+                        ? source.getStock()
+                        : 0
+        );
+
+        response.setAverageRating(
+                Math.round(averageRating * 10.0) / 10.0
+        );
+
         response.setTotalReviews(totalReviews);
+
         return response;
     }
 
-    private Map<Long, ReviewRepository.ProductReviewSummaryProjection> getReviewSummaryByProductId(List<Product> products) {
+    /**
+     * Gets review summaries for all products in one query.
+     */
+    private Map<Long, ReviewRepository.ProductReviewSummaryProjection>
+    getReviewSummaryByProductId(List<Product> products) {
+
         if (products == null || products.isEmpty()) {
             return Map.of();
         }
 
-        List<Long> productIds = products.stream()
-                .map(Product::getId)
-                .toList();
+        List<Long> productIds =
+                products.stream()
+                        .map(Product::getId)
+                        .toList();
 
-        return reviewRepository.findReviewSummariesByProductIds(productIds)
+        return reviewRepository
+                .findReviewSummariesByProductIds(productIds)
                 .stream()
-                .collect(Collectors.toMap(ReviewRepository.ProductReviewSummaryProjection::getProductId, summary -> summary));
+                .collect(
+                        Collectors.toMap(
+                                ReviewRepository.ProductReviewSummaryProjection::getProductId,
+                                summary -> summary
+                        )
+                );
     }
 }
