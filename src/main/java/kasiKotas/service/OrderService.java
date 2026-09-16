@@ -215,6 +215,7 @@ public class OrderService {
 
         order.setOrderDate(orderDateTime);
         order.setStatus(Order.OrderStatus.PENDING);
+        order.setPaymentMethod(paymentMethod);
 
         log.debug(
                 "Initial orderDate set to {}",

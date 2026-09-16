@@ -60,6 +60,15 @@ public class Order {
     @Column(nullable = false)
     private Double totalAmount;
 
+    /**
+     * Compatibility mapping for the legacy orders.payment_method column.
+     * Payment remains the source of truth for payment processing.
+     */
+    @Enumerated(EnumType.STRING)
+    @JsonIgnore
+    @Column(name = "payment_method", nullable = false)
+    private PaymentMethod paymentMethod;
+
     @Column(columnDefinition = "TEXT")
     private String shippingAddress;
 
