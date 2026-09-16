@@ -26,7 +26,20 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // This leverages the Many-to-One relationship defined in the Order entity.
     List<Order> findByUser(User user);
 
-    Optional<Order> findByIdempotencyKey(String idempotencyKey);
+        Optional<Order> findByUserIdAndIdempotencyKey(Long userId, String idempotencyKey);
+
+        @Query("SELECT DISTINCT o FROM Order o " +
+           "LEFT JOIN FETCH o.orderItems oi " +
+           "LEFT JOIN FETCH oi.product p " +
+           "WHERE o.user.id = :userId " +
+           "AND o.orderDate >= :since " +
+           "AND o.totalAmount = :totalAmount " +
+           "AND o.status <> kasiKotas.model.Order.OrderStatus.CANCELLED")
+        List<Order> findRecentPotentialDuplicates(
+            @Param("userId") Long userId,
+            @Param("since") LocalDateTime since,
+            @Param("totalAmount") Double totalAmount
+        );
 
     // Optimized query to fetch orders with all related data in one query to avoid N+1 queries
     // Only fetch orders with valid orderDate to exclude legacy data

@@ -47,6 +47,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage(), "ORDER_LIMIT_EXCEEDED", request);
     }
 
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<ApiError> handleIdempotencyConflict(IdempotencyConflictException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), "DATA_CONFLICT", request);
+    }
+
     @ExceptionHandler({
             ConcurrencyConflictException.class,
             CannotAcquireLockException.class,
@@ -85,8 +90,17 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiError> handleDataConflict(DataIntegrityViolationException ignored, HttpServletRequest request) {
+    public ResponseEntity<ApiError> handleDataConflict(DataIntegrityViolationException ex, HttpServletRequest request) {
+        log.error("Data integrity conflict on {}: {}", request.getRequestURI(), rootCauseMessage(ex), ex);
         return build(HttpStatus.CONFLICT, "Request conflicts with existing data.", "DATA_CONFLICT", request);
+    }
+
+    private String rootCauseMessage(Throwable throwable) {
+        Throwable rootCause = throwable;
+        while (rootCause.getCause() != null) {
+            rootCause = rootCause.getCause();
+        }
+        return rootCause.getMessage();
     }
 
     @ExceptionHandler(ResponseStatusException.class)

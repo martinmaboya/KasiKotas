@@ -16,7 +16,13 @@ import java.util.List;
  * Represents a customer's order in the KasiKotas system.
  */
 @Entity
-@Table(name = "orders")
+@Table(
+    name = "orders",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_orders_user_idempotency_key",
+        columnNames = {"user_id", "idempotency_key"}
+    )
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -155,8 +161,11 @@ public class Order {
      * Prevents duplicate order creation when the same
      * checkout request is submitted more than once.
      */
-    @Column(name = "idempotency_key", unique = true)
+    @Column(name = "idempotency_key")
     private String idempotencyKey;
+
+    @Column(name = "payload_hash", length = 64)
+    private String payloadHash;
 
     /*
      * Optimistic locking.

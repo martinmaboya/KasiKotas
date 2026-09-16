@@ -2,6 +2,7 @@
 package kasiKotas.service;
 
 import kasiKotas.exception.ConcurrencyConflictException;
+import kasiKotas.exception.IdempotencyConflictException;
 import kasiKotas.exception.InsufficientStockException;
 import kasiKotas.exception.OrderLimitExceededException;
 import kasiKotas.model.*;
@@ -23,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.Collections;
@@ -109,6 +113,7 @@ public class OrderService {
      * @return The created and saved Order.
      */
     @CacheEvict(value = "userOrders", allEntries = true)
+        @Transactional
     public Order createOrder(Order order, PaymentMethod paymentMethod) {
 
         if (order == null) {
@@ -123,26 +128,27 @@ public class OrderService {
             throw new IllegalArgumentException("Order must contain at least one item.");
         }
 
-        // ---------------------------------------------------------
-        // IDEMPOTENCY
-        // ---------------------------------------------------------
+                if (order.getUser() == null || order.getUser().getId() == null) {
+                        throw new IllegalArgumentException("Order must have a valid user with ID.");
+                }
 
-        if (order.getIdempotencyKey() != null) {
+                User customer = userRepository.findById(order.getUser().getId())
+                                .orElseThrow(() -> new IllegalArgumentException(
+                                                "Customer not found with ID: " + order.getUser().getId()
+                                ));
+                order.setUser(customer);
 
-            Optional<Order> existing =
-                    orderRepository.findByIdempotencyKey(order.getIdempotencyKey());
+                String payloadHash = buildPayloadHash(order, paymentMethod);
 
-            if (existing.isPresent()) {
+                if (StringUtils.hasText(order.getIdempotencyKey())) {
+                        Optional<Order> existing = orderRepository.findByUserIdAndIdempotencyKey(
+                                        customer.getId(), order.getIdempotencyKey()
+                        );
 
-                log.info(
-                        "Duplicate order request for idempotency key {}, returning existing order {}",
-                        order.getIdempotencyKey(),
-                        existing.get().getId()
-                );
-
-                return existing.get();
-            }
-        }
+                        if (existing.isPresent()) {
+                                return resolveRetry(existing.get(), payloadHash);
+                        }
+                }
 
         // ---------------------------------------------------------
         // DAILY ORDER LIMIT
@@ -200,23 +206,6 @@ public class OrderService {
         // ---------------------------------------------------------
         // VALIDATE USER
         // ---------------------------------------------------------
-
-        if (order.getUser() == null || order.getUser().getId() == null) {
-
-            throw new IllegalArgumentException(
-                    "Order must have a valid user with ID."
-            );
-        }
-
-        User customer = userRepository.findById(order.getUser().getId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Customer not found with ID: "
-                                        + order.getUser().getId()
-                        )
-                );
-
-        order.setUser(customer);
 
         // ---------------------------------------------------------
         // INITIAL ORDER INFORMATION
@@ -292,34 +281,6 @@ public class OrderService {
                 );
             }
 
-            // Atomic stock decrease.
-            boolean stockDecreased;
-
-            try {
-
-                stockDecreased =
-                        productService.decreaseStock(
-                                product.getId(),
-                                item.getQuantity()
-                        );
-
-            } catch (PessimisticLockingFailureException ex) {
-
-                throw new ConcurrencyConflictException(
-                        "High traffic right now. Please try again.",
-                        ex
-                );
-            }
-
-            if (!stockDecreased) {
-
-                throw new InsufficientStockException(
-                        "Sorry, "
-                                + product.getName()
-                                + " is sold out. Please remove it or choose another item."
-                );
-            }
-
             item.setProduct(product);
             item.setPriceAtTimeOfOrder(product.getPrice());
             item.setOrder(order);
@@ -383,54 +344,6 @@ public class OrderService {
 
                 parseSelectedSauces(
                         item.getSelectedSaucesJson()
-                );
-            }
-        }
-
-        // ---------------------------------------------------------
-        // DECREASE EXTRA STOCK
-        // ---------------------------------------------------------
-
-        for (Map.Entry<Long, Integer> entry
-                : extraDemandTotals.entrySet()) {
-
-            Long extraId = entry.getKey();
-            int demand = entry.getValue();
-
-            if (demand <= 0) {
-                continue;
-            }
-
-            boolean decremented;
-
-            try {
-
-                decremented =
-                        extraRepository
-                                .decrementStockIfAvailable(
-                                        extraId,
-                                        demand
-                                ) == 1;
-
-            } catch (PessimisticLockingFailureException ex) {
-
-                throw new ConcurrencyConflictException(
-                        "High traffic right now. Please try again.",
-                        ex
-                );
-            }
-
-            if (!decremented) {
-
-                String extraName =
-                        extraRepository.findById(extraId)
-                                .map(Extra::getName)
-                                .orElse("ID " + extraId);
-
-                throw new InsufficientStockException(
-                        "Sorry, "
-                                + extraName
-                                + " is sold out. Please remove it or choose another extra."
                 );
             }
         }
@@ -538,6 +451,60 @@ public class OrderService {
         order.setDiscountAmount(discountAmount);
         order.setTotalAmount(totalAmount);
 
+                Optional<Order> recentDuplicate = orderRepository.findRecentPotentialDuplicates(
+                                customer.getId(),
+                                LocalDateTime.now().minusMinutes(15),
+                                totalAmount
+                ).stream().filter(candidate -> sameOrderItems(candidate, order)).findFirst();
+
+                if (recentDuplicate.isPresent()) {
+                        return resolveRetry(recentDuplicate.get(), payloadHash);
+                }
+
+                for (OrderItem item : order.getOrderItems()) {
+                        boolean stockDecreased;
+                        try {
+                                stockDecreased = productService.decreaseStock(
+                                                item.getProduct().getId(), item.getQuantity()
+                                );
+                        } catch (PessimisticLockingFailureException ex) {
+                                throw new ConcurrencyConflictException(
+                                                "High traffic right now. Please try again.", ex
+                                );
+                        }
+                        if (!stockDecreased) {
+                                throw new InsufficientStockException(
+                                                "Sorry, " + item.getProduct().getName()
+                                                                + " is sold out. Please remove it or choose another item."
+                                );
+                        }
+                }
+
+                for (Map.Entry<Long, Integer> entry : extraDemandTotals.entrySet()) {
+                        Long extraId = entry.getKey();
+                        int demand = entry.getValue();
+                        if (demand <= 0) {
+                                continue;
+                        }
+                        boolean decremented;
+                        try {
+                                decremented = extraRepository.decrementStockIfAvailable(extraId, demand) == 1;
+                        } catch (PessimisticLockingFailureException ex) {
+                                throw new ConcurrencyConflictException(
+                                                "High traffic right now. Please try again.", ex
+                                );
+                        }
+                        if (!decremented) {
+                                String extraName = extraRepository.findById(extraId)
+                                                .map(Extra::getName).orElse("ID " + extraId);
+                                throw new InsufficientStockException(
+                                                "Sorry, " + extraName + " is sold out. Please remove it or choose another extra."
+                                );
+                        }
+                }
+
+                order.setPayloadHash(payloadHash);
+
         order.setOrderDate(LocalDateTime.now());
 
         // ---------------------------------------------------------
@@ -568,6 +535,75 @@ public class OrderService {
         );
 
         return savedOrder;
+    }
+
+    private Order resolveRetry(Order existing, String payloadHash) {
+                String existingHash = existing.getPayloadHash();
+                if (!StringUtils.hasText(existingHash)
+                                && existing.getPayment() != null
+                                && existing.getPayment().getPaymentMethod() != null) {
+                        existingHash = buildPayloadHash(existing, existing.getPayment().getPaymentMethod());
+                }
+
+                if (payloadHash.equals(existingHash)) {
+            log.info("Returning existing order {} for an idempotent retry", existing.getId());
+            return existing;
+        }
+
+        throw new IdempotencyConflictException(
+                "The idempotency key was already used with a different order request."
+        );
+    }
+
+    private boolean sameOrderItems(Order left, Order right) {
+        String leftHash = buildItemHash(left.getOrderItems());
+        String rightHash = buildItemHash(right.getOrderItems());
+        return leftHash.equals(rightHash)
+                && normalize(left.getDeliveryMethod()).equals(normalize(right.getDeliveryMethod()))
+                && normalize(left.getShippingAddress()).equals(normalize(right.getShippingAddress()))
+                && normalize(left.getPromoCode()).equals(normalize(right.getPromoCode()))
+                && java.util.Objects.equals(left.getScheduledDeliveryTime(), right.getScheduledDeliveryTime());
+    }
+
+    private String buildPayloadHash(Order order, PaymentMethod paymentMethod) {
+        return sha256(order.getUser().getId() + "|" + paymentMethod + "|"
+                + normalize(order.getShippingAddress()) + "|"
+                + normalize(order.getDeliveryMethod()) + "|"
+                + normalize(order.getPromoCode()) + "|"
+                + order.getScheduledDeliveryTime() + "|"
+                + buildItemHash(order.getOrderItems()));
+    }
+
+    private String buildItemHash(List<OrderItem> items) {
+        StringBuilder payload = new StringBuilder();
+        items.stream()
+                .sorted((left, right) -> Long.compare(
+                        left.getProduct().getId(), right.getProduct().getId()))
+                .forEach(item -> payload
+                        .append(item.getProduct().getId()).append(':')
+                        .append(item.getQuantity()).append(':')
+                        .append(normalize(item.getCustomizationNotes())).append(':')
+                        .append(normalize(item.getSelectedExtrasJson())).append(':')
+                        .append(normalize(item.getSelectedSaucesJson())).append('|'));
+        return payload.toString();
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private String sha256(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hash = new StringBuilder();
+            for (byte current : digest) {
+                hash.append(String.format("%02x", current));
+            }
+            return hash.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable", ex);
+        }
     }
 
     private Map<Long, Integer> parseSelectedExtrasDemand(
