@@ -51,6 +51,7 @@ public class YocoPaymentController {
     /**
      * Verifies payment status after user returns from the hosted Yoco redirect.
      */
+    @PreAuthorize("@authorizationHelper.canAccessOrder(authentication, #orderId)")
     @GetMapping("/verify/{orderId}")
     public ResponseEntity<Map<String, Object>> verifyPayment(
             @PathVariable Long orderId,

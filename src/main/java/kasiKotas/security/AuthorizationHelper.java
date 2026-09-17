@@ -1,6 +1,7 @@
 package kasiKotas.security;
 
 import kasiKotas.model.User;
+import kasiKotas.repository.OrderRepository;
 import kasiKotas.service.UserService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -13,9 +14,18 @@ import java.util.Collection;
 public class AuthorizationHelper {
 
     private final UserService userService;
+    private final OrderRepository orderRepository;
 
-    public AuthorizationHelper(UserService userService) {
+    public AuthorizationHelper(UserService userService, OrderRepository orderRepository) {
         this.userService = userService;
+        this.orderRepository = orderRepository;
+    }
+
+    public boolean canAccessOrder(Authentication authentication, Long orderId) {
+        return orderId != null
+                && orderRepository.findById(orderId)
+                .map(order -> canAccessUser(authentication, order.getUser().getId()))
+                .orElse(false);
     }
 
     public boolean canAccessUser(Authentication authentication, Long targetUserId) {

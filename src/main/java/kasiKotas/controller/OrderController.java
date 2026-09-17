@@ -80,7 +80,7 @@ public class OrderController {
     // GET SINGLE ORDER
     // =========================================================
 
-    @PreAuthorize("hasRole('ADMIN')")
+        @PreAuthorize("@authorizationHelper.canAccessOrder(authentication, #id)")
     @GetMapping("/{id}")
     public ResponseEntity<Order> getOrderById(
             @PathVariable Long id) {
