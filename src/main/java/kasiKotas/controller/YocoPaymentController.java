@@ -77,6 +77,22 @@ public class YocoPaymentController {
     }
 
     /**
+     * Cancels an unpaid Yoco order after the customer leaves the hosted checkout.
+     */
+    @PreAuthorize("@authorizationHelper.canAccessOrder(authentication, #orderId)")
+    @PostMapping("/cancel/{orderId}")
+    public ResponseEntity<Void> cancelPayment(@PathVariable Long orderId) {
+        Payment payment = paymentService.getPaymentByOrderId(orderId);
+
+        if (payment.getStatus() != kasiKotas.model.PaymentStatus.PAID) {
+            paymentService.cancelPayment(payment.getId());
+            orderService.cancelAfterPaymentFailure(orderId);
+        }
+
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * Webhook endpoint for Yoco payment status callbacks.
      */
     @PostMapping("/webhook")
