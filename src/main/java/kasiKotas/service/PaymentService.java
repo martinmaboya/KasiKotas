@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.time.LocalDateTime;
 
@@ -112,6 +113,11 @@ public class PaymentService {
 
         return paymentRepository.save(payment);
     }
+
+        @Transactional(propagation = Propagation.REQUIRES_NEW)
+        public Payment markAsFailedAfterCheckoutError(Long paymentId) {
+                return markAsFailed(paymentId);
+        }
 
     @Transactional
     public Payment cancelPayment(Long paymentId) {

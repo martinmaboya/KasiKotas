@@ -145,6 +145,13 @@ public class YocoPaymentService {
 
         } catch (Exception ex) {
             log.error("Failed to create Yoco checkout session for order ID: {}. Error: {}", order.getId(), ex.getMessage(), ex);
+            try {
+                paymentService.markAsFailedAfterCheckoutError(payment.getId());
+                orderService.cancelAfterPaymentFailure(order.getId());
+            } catch (Exception recoveryException) {
+                log.error("Could not cancel order {} after Yoco checkout failure: {}",
+                        order.getId(), recoveryException.getMessage(), recoveryException);
+            }
             throw new RuntimeException("Could not initiate Yoco payment: " + ex.getMessage(), ex);
         }
     }

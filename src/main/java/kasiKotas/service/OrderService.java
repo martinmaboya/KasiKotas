@@ -21,6 +21,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -1101,6 +1102,11 @@ public class OrderService {
                     return saved;
                 });
     }
+
+        @Transactional(propagation = Propagation.REQUIRES_NEW)
+        public void cancelAfterPaymentFailure(Long orderId) {
+                updateOrderStatus(orderId, Order.OrderStatus.CANCELLED);
+        }
 
     /**
      * Deletes an order by its ID and restores inventory.

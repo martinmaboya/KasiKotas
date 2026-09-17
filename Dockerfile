@@ -29,6 +29,9 @@ WORKDIR /app
 # Copy the JAR file from the build stage into the final container
 COPY --from=build /app/target/KasiKotas-1.0-SNAPSHOT.jar app.jar
 
+# Keep the JVM below Render's 512 MiB instance limit.
+ENV JAVA_TOOL_OPTIONS="-Xms128m -Xmx300m -XX:MaxMetaspaceSize=128m -Xss256k -XX:+UseSerialGC"
+
 # Expose port that Spring Boot will run on
 EXPOSE 8080
 
