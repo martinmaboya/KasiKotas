@@ -1,15 +1,15 @@
 package kasiKotas.controller;
 
-import kasiKotas.model.Order;
-import kasiKotas.model.Payment;
-import kasiKotas.service.OrderService;
-import kasiKotas.service.PaymentService;
+import kasiKotas.model.User;
+import kasiKotas.service.UserService;
 import kasiKotas.service.YocoPaymentService;
-
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -20,119 +20,76 @@ import java.util.Map;
 public class YocoPaymentController {
 
     private final YocoPaymentService yocoPaymentService;
-    private final PaymentService paymentService;
-    private final OrderService orderService;
+    private final UserService userService;
 
-    /**
-     * Creates a Yoco checkout redirect URL.
-     */
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/create-checkout")
     public ResponseEntity<Map<String, String>> createCheckout(@RequestBody CheckoutRequest request) {
-
-        if (request.getOrderId() == null) {
-            throw new IllegalArgumentException("orderId is required.");
+        if (request == null || request.getOrder() == null) {
+            throw new IllegalArgumentException("order is required.");
         }
-
-        if (request.getSuccessUrl() == null || request.getSuccessUrl().isBlank()
-                || request.getCancelUrl() == null || request.getCancelUrl().isBlank()) {
-            throw new IllegalArgumentException("successUrl and cancelUrl are required.");
-        }
-
+        User user = currentUser();
         String redirectUrl = yocoPaymentService.createCheckoutSession(
-                request.getOrderId(),
-                request.getSuccessUrl(),
-                request.getCancelUrl()
-        );
-
-        return ResponseEntity.ok(Map.of("redirectUrl", redirectUrl));
-    }
-
-    /**
-     * Verifies payment status after user returns from the hosted Yoco redirect.
-     */
-    @PreAuthorize("@authorizationHelper.canAccessOrder(authentication, #orderId)")
-    @GetMapping("/verify/{orderId}")
-    public ResponseEntity<Map<String, Object>> verifyPayment(
-            @PathVariable Long orderId,
-            @RequestParam(value = "checkoutId", required = false) String checkoutId) {
-
-        Payment payment = paymentService.getPaymentByOrderId(orderId);
-
-        if (payment != null) {
-            String reference = checkoutId != null ? checkoutId : payment.getYocoCheckoutId();
-
-            // 1. Set Payment entity status to PAID
-            paymentService.markAsPaid(payment.getId(), reference);
-
-            // 2. Set Order entity status to PROCESSING
-            orderService.updateOrderStatus(orderId, Order.OrderStatus.PROCESSING);
-        }
-
+                request.getOrder(), user, request.getSuccessUrl(), request.getCancelUrl());
         return ResponseEntity.ok(Map.of(
-                "status", "SUCCESS",
-                "orderId", orderId,
-                "message", "Payment verified and order set to PROCESSING."
-        ));
+            "redirectUrl", redirectUrl));
     }
 
-    /**
-     * Cancels an unpaid Yoco order after the customer leaves the hosted checkout.
-     */
-    @PreAuthorize("@authorizationHelper.canAccessOrder(authentication, #orderId)")
-    @PostMapping("/cancel/{orderId}")
-    public ResponseEntity<Void> cancelPayment(@PathVariable Long orderId) {
-        Payment payment = paymentService.getPaymentByOrderId(orderId);
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/verify/{intentId}")
+    public ResponseEntity<Map<String, Object>> verifyPayment(@PathVariable Long intentId) {
+        return ResponseEntity.ok(Map.of(
+                "status", "PENDING",
+                "intentId", intentId,
+                "message", "Payment status is finalized by the Yoco webhook."));
+    }
 
-        if (payment.getStatus() != kasiKotas.model.PaymentStatus.PAID) {
-            paymentService.cancelPayment(payment.getId());
-            orderService.cancelAfterPaymentFailure(orderId);
-        }
-
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/cancel/{intentId}")
+    public ResponseEntity<Void> cancelPayment(@PathVariable Long intentId) {
+        yocoPaymentService.cancelIntent(intentId);
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Webhook endpoint for Yoco payment status callbacks.
-     */
     @PostMapping("/webhook")
     public ResponseEntity<Void> handleYocoWebhook(@RequestBody Map<String, Object> payload) {
-
-        if (payload != null && payload.containsKey("type")) {
-            String eventType = (String) payload.get("type");
-
-            if ("checkout.succeeded".equalsIgnoreCase(eventType) || "payment.succeeded".equalsIgnoreCase(eventType)) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> data = (Map<String, Object>) payload.get("data");
-                if (data != null) {
-                    String checkoutId = (String) data.get("id");
-
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> metadata = (Map<String, Object>) data.get("metadata");
-
-                    if (metadata != null && metadata.get("paymentId") != null) {
-                        Long paymentId = Long.parseLong(metadata.get("paymentId").toString());
-
-                        // Set Payment entity status to PAID
-                        paymentService.markAsPaid(paymentId, checkoutId);
-
-                        if (metadata.get("orderId") != null) {
-                            Long orderId = Long.parseLong(metadata.get("orderId").toString());
-
-
-                            orderService.updateOrderStatus(orderId, Order.OrderStatus.PROCESSING);
-                        }
-                    }
-                }
-            }
+        if (payload == null || !payload.containsKey("type")) {
+            return ResponseEntity.ok().build();
         }
 
+        String eventType = String.valueOf(payload.get("type"));
+        if (!"checkout.succeeded".equalsIgnoreCase(eventType)
+                && !"payment.succeeded".equalsIgnoreCase(eventType)) {
+            return ResponseEntity.ok().build();
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) payload.get("data");
+        if (data == null) {
+            return ResponseEntity.ok().build();
+        }
+        String checkoutId = data.get("id") == null ? null : data.get("id").toString();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> metadata = (Map<String, Object>) data.get("metadata");
+        if (metadata != null && metadata.get("intentId") != null) {
+            yocoPaymentService.confirmIntent(Long.parseLong(metadata.get("intentId").toString()), checkoutId);
+        }
         return ResponseEntity.ok().build();
+    }
+
+    private User currentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Object principal = authentication == null ? null : authentication.getPrincipal();
+        String email = principal instanceof UserDetails details
+                ? details.getUsername()
+                : principal instanceof String value ? value : null;
+        return userService.getUserByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found."));
     }
 
     @Data
     public static class CheckoutRequest {
-        private Long orderId;
+        private Map<String, Object> order;
         private String successUrl;
         private String cancelUrl;
     }

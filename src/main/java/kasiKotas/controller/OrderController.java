@@ -301,6 +301,12 @@ public class OrderController {
             );
         }
 
+        if (paymentMethod == PaymentMethod.YOCO) {
+            throw new IllegalArgumentException(
+                    "Yoco orders must start at POST /api/yoco/create-checkout."
+            );
+        }
+
         // -----------------------------------------------------
         // AUTHENTICATED USER
         // -----------------------------------------------------

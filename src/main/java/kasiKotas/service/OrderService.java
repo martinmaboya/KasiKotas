@@ -539,6 +539,29 @@ public class OrderService {
         return savedOrder;
     }
 
+        /**
+         * Runs the normal server-side order validation and pricing, then rolls
+         * back the transaction so no order or inventory mutation is retained.
+         */
+        @Transactional(propagation = Propagation.REQUIRES_NEW)
+        public double quoteOrder(Order order, PaymentMethod paymentMethod) {
+                Order prepared = createOrder(order, paymentMethod);
+                double total = prepared.getTotalAmount();
+                throw new OrderQuoteException(total);
+        }
+
+        public static class OrderQuoteException extends RuntimeException {
+                private final double total;
+
+                public OrderQuoteException(double total) {
+                        this.total = total;
+                }
+
+                public double getTotal() {
+                        return total;
+                }
+        }
+
     private Order resolveRetry(Order existing, String payloadHash) {
                 String existingHash = existing.getPayloadHash();
                 if (!StringUtils.hasText(existingHash)
