@@ -106,6 +106,7 @@ public class YocoPaymentService {
         Order order = toOrder(deserialize(intent.getOrderPayload()), intent.getUser());
         Order savedOrder = orderService.createOrder(order, PaymentMethod.YOCO);
         Payment payment = paymentService.createPayment(savedOrder, PaymentMethod.YOCO, savedOrder.getTotalAmount());
+        payment.setYocoCheckoutId(checkoutId);
         paymentService.markAsPaid(payment.getId(), checkoutId);
         orderService.updateOrderStatus(savedOrder.getId(), Order.OrderStatus.PROCESSING);
         intent.setOrderId(savedOrder.getId());

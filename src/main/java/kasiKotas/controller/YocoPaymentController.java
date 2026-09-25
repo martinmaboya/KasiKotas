@@ -1,6 +1,8 @@
 package kasiKotas.controller;
 
+import kasiKotas.model.PaymentStatus;
 import kasiKotas.model.User;
+import kasiKotas.service.PaymentService;
 import kasiKotas.service.UserService;
 import kasiKotas.service.YocoPaymentService;
 import lombok.Data;
@@ -20,6 +22,7 @@ import java.util.Map;
 public class YocoPaymentController {
 
     private final YocoPaymentService yocoPaymentService;
+    private final PaymentService paymentService;
     private final UserService userService;
 
     @PreAuthorize("isAuthenticated()")
@@ -58,22 +61,38 @@ public class YocoPaymentController {
         }
 
         String eventType = String.valueOf(payload.get("type"));
-        if (!"checkout.succeeded".equalsIgnoreCase(eventType)
-                && !"payment.succeeded".equalsIgnoreCase(eventType)) {
-            return ResponseEntity.ok().build();
-        }
 
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) payload.get("data");
         if (data == null) {
             return ResponseEntity.ok().build();
         }
+
         String checkoutId = data.get("id") == null ? null : data.get("id").toString();
-        @SuppressWarnings("unchecked")
-        Map<String, Object> metadata = (Map<String, Object>) data.get("metadata");
-        if (metadata != null && metadata.get("intentId") != null) {
-            yocoPaymentService.confirmIntent(Long.parseLong(metadata.get("intentId").toString()), checkoutId);
+
+        if ("checkout.succeeded".equalsIgnoreCase(eventType)
+                || "payment.succeeded".equalsIgnoreCase(eventType)) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> metadata = (Map<String, Object>) data.get("metadata");
+            if (metadata != null && metadata.get("intentId") != null) {
+                yocoPaymentService.confirmIntent(Long.parseLong(metadata.get("intentId").toString()), checkoutId);
+            }
+            return ResponseEntity.ok().build();
         }
+
+        if ("checkout.failed".equalsIgnoreCase(eventType)
+                || "payment.failed".equalsIgnoreCase(eventType)
+                || "checkout.cancelled".equalsIgnoreCase(eventType)
+                || "payment.cancelled".equalsIgnoreCase(eventType)) {
+            if (checkoutId != null && !checkoutId.isBlank()) {
+                try {
+                    paymentService.updatePaymentStatusByYocoCheckoutId(checkoutId, PaymentStatus.FAILED);
+                } catch (IllegalArgumentException ignored) {
+                    // The checkout may not have created a stored payment yet.
+                }
+            }
+        }
+
         return ResponseEntity.ok().build();
     }
 

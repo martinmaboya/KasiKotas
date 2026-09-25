@@ -140,6 +140,31 @@ public class OrderController {
     // =========================================================
 
     @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{orderId}/payment-status")
+    public ResponseEntity<Payment> updatePaymentStatus(
+            @PathVariable Long orderId,
+            @RequestBody Map<String, String> requestBody) {
+
+        if (requestBody == null) {
+            throw new IllegalArgumentException("Request body is required.");
+        }
+
+        String statusString = requestBody.get("status");
+        if (statusString == null || statusString.isBlank()) {
+            throw new IllegalArgumentException("status is required.");
+        }
+
+        PaymentStatus paymentStatus;
+        try {
+            paymentStatus = PaymentStatus.valueOf(statusString.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid payment status. Allowed values: PENDING, PAID, FAILED, CANCELLED, REFUNDED");
+        }
+
+        return ResponseEntity.ok(paymentService.updatePaymentStatusByOrderId(orderId, paymentStatus));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{orderId}/status")
     public ResponseEntity<Order> updateOrderStatus(
             @PathVariable Long orderId,

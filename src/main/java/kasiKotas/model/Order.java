@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -193,6 +194,22 @@ public class Order {
         DELIVERED,
         COLLECTED,
         CANCELLED
+    }
+
+    @JsonProperty("paymentMethod")
+    public PaymentMethod getApiPaymentMethod() {
+        if (this.payment != null && this.payment.getPaymentMethod() != null) {
+            return this.payment.getPaymentMethod();
+        }
+        return this.paymentMethod;
+    }
+
+    @JsonProperty("paymentStatus")
+    public PaymentStatus getApiPaymentStatus() {
+        if (this.payment != null && this.payment.getStatus() != null) {
+            return this.payment.getStatus();
+        }
+        return PaymentStatus.PENDING;
     }
 
     public boolean hasPromoCode() {
