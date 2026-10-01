@@ -125,9 +125,38 @@ public class YocoPaymentService {
     }
 
     /**
+     * Called when the user lands on the success URL after paying on Yoco's hosted page.
+     * Confirms the intent (creates the order, marks payment PAID) and returns the result.
+     * Safe to call multiple times — if already PAID it skips straight to returning status.
+     */
+    @Transactional
+    public Map<String, Object> confirmAndGetStatus(Long intentId, String checkoutId) {
+        YocoPaymentIntent intent = intentRepository.findById(intentId)
+                .orElseThrow(() -> new IllegalArgumentException("Yoco payment intent not found: " + intentId));
+
+        // If already confirmed (e.g. webhook beat us to it) just return current status.
+        if (intent.getStatus() != PaymentStatus.PAID) {
+            // Use the stored checkoutId if one wasn't passed in the redirect URL.
+            String resolvedCheckoutId = (checkoutId != null && !checkoutId.isBlank())
+                    ? checkoutId
+                    : intent.getYocoCheckoutId();
+            confirmIntent(intentId, resolvedCheckoutId);
+            // Re-fetch after commit so we return the latest state.
+            intent = intentRepository.findById(intentId).orElseThrow();
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("intentId", intentId);
+        result.put("status", intent.getStatus().name());
+        if (intent.getOrderId() != null) {
+            result.put("orderId", intent.getOrderId());
+        }
+        return result;
+    }
+
+    /**
      * Returns the current status of a Yoco payment intent, including the associated
-     * order ID once the payment has been confirmed. Used by the frontend to poll
-     * after a successful Yoco redirect instead of returning a hardcoded PENDING.
+     * order ID once the payment has been confirmed.
      */
     @Transactional(readOnly = true)
     public Map<String, Object> getIntentStatus(Long intentId) {

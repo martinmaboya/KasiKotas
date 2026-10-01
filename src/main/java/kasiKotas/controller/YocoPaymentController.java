@@ -55,8 +55,12 @@ public class YocoPaymentController {
 
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/verify/{intentId}")
-    public ResponseEntity<Map<String, Object>> verifyPayment(@PathVariable Long intentId) {
-        Map<String, Object> result = yocoPaymentService.getIntentStatus(intentId);
+    public ResponseEntity<Map<String, Object>> verifyPayment(
+            @PathVariable Long intentId,
+            @RequestParam(value = "checkoutId", required = false) String checkoutId) {
+        // Confirm the intent immediately on the success redirect — no webhook needed.
+        // confirmIntent() is idempotent: if already PAID it returns instantly.
+        Map<String, Object> result = yocoPaymentService.confirmAndGetStatus(intentId, checkoutId);
         return ResponseEntity.ok(result);
     }
 
