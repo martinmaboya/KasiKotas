@@ -163,6 +163,10 @@ public class YocoPaymentService {
 
     private Order toOrder(Map<String, Object> payload, User user) {
         Order order = objectMapper.convertValue(payload, Order.class);
+        // Force a JPA INSERT — never let a client-supplied id or version
+        // cause Hibernate to attempt an UPDATE on a non-existent row.
+        order.setId(null);
+        order.setVersion(null);
         order.setUser(new User(user.getId()));
         order.setPaymentMethod(PaymentMethod.YOCO);
         return order;
