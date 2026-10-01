@@ -123,6 +123,23 @@ public class PaymentService {
         return applyStatusTransition(payment, PaymentStatus.PAID, providerReference);
     }
 
+    /**
+     * Persists the Yoco checkout ID on an already-saved Payment.
+     * Called after {@link #markAsPaid} so the yoco_checkout_id column is never NULL
+     * for successful Yoco payments (required by {@link #updatePaymentStatusByYocoCheckoutId}).
+     */
+    @Transactional
+    public Payment saveYocoCheckoutId(Payment payment, String yocoCheckoutId) {
+        if (payment == null) {
+            throw new IllegalArgumentException("Payment is required.");
+        }
+        if (yocoCheckoutId == null || yocoCheckoutId.isBlank()) {
+            return payment;
+        }
+        payment.setYocoCheckoutId(yocoCheckoutId);
+        return paymentRepository.save(payment);
+    }
+
     @Transactional
     public Payment markAsFailed(Long paymentId) {
 

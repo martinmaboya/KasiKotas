@@ -90,7 +90,8 @@ public class SecurityConfig {
                 "/api/auth/facebook",
                 "/api/auth/oauth/status",
                 "/api/auth/passkey/register/options",
-                "/api/auth/passkey/register/verify"
+                "/api/auth/passkey/register/verify",
+                "/api/yoco/webhook"
             ).permitAll()
              .anyRequest().authenticated()
                 )

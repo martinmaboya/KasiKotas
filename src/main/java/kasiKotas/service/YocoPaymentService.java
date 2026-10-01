@@ -106,12 +106,40 @@ public class YocoPaymentService {
         Order order = toOrder(deserialize(intent.getOrderPayload()), intent.getUser());
         Order savedOrder = orderService.createOrder(order, PaymentMethod.YOCO);
         Payment payment = paymentService.createPayment(savedOrder, PaymentMethod.YOCO, savedOrder.getTotalAmount());
-        payment.setYocoCheckoutId(checkoutId);
-        paymentService.markAsPaid(payment.getId(), checkoutId);
+        // markAsPaid returns the freshly-saved Payment; set yocoCheckoutId on that instance
+        // so it is persisted in the same save call via the repository.
+        Payment paidPayment = paymentService.markAsPaid(payment.getId(), checkoutId);
+        paymentService.saveYocoCheckoutId(paidPayment, checkoutId);
         orderService.updateOrderStatus(savedOrder.getId(), Order.OrderStatus.PROCESSING);
         intent.setOrderId(savedOrder.getId());
         intent.setStatus(PaymentStatus.PAID);
         intentRepository.save(intent);
+    }
+
+    @Transactional
+    public void confirmIntentByCheckoutId(String checkoutId) {
+        YocoPaymentIntent intent = intentRepository.findByYocoCheckoutId(checkoutId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Yoco payment intent not found for checkout: " + checkoutId));
+        confirmIntent(intent.getId(), checkoutId);
+    }
+
+    /**
+     * Returns the current status of a Yoco payment intent, including the associated
+     * order ID once the payment has been confirmed. Used by the frontend to poll
+     * after a successful Yoco redirect instead of returning a hardcoded PENDING.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getIntentStatus(Long intentId) {
+        YocoPaymentIntent intent = intentRepository.findById(intentId)
+                .orElseThrow(() -> new IllegalArgumentException("Yoco payment intent not found: " + intentId));
+        Map<String, Object> result = new HashMap<>();
+        result.put("intentId", intentId);
+        result.put("status", intent.getStatus().name());
+        if (intent.getOrderId() != null) {
+            result.put("orderId", intent.getOrderId());
+        }
+        return result;
     }
 
     @Transactional

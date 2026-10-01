@@ -41,10 +41,8 @@ public class YocoPaymentController {
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/verify/{intentId}")
     public ResponseEntity<Map<String, Object>> verifyPayment(@PathVariable Long intentId) {
-        return ResponseEntity.ok(Map.of(
-                "status", "PENDING",
-                "intentId", intentId,
-                "message", "Payment status is finalized by the Yoco webhook."));
+        Map<String, Object> result = yocoPaymentService.getIntentStatus(intentId);
+        return ResponseEntity.ok(result);
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -63,7 +61,11 @@ public class YocoPaymentController {
         String eventType = String.valueOf(payload.get("type"));
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) payload.get("data");
+        Map<String, Object> data = (Map<String, Object>) payload.get("payload");
+        if (data == null) {
+            // Keep accepting the legacy envelope used by older Yoco events/tests.
+            data = (Map<String, Object>) payload.get("data");
+        }
         if (data == null) {
             return ResponseEntity.ok().build();
         }
@@ -76,6 +78,8 @@ public class YocoPaymentController {
             Map<String, Object> metadata = (Map<String, Object>) data.get("metadata");
             if (metadata != null && metadata.get("intentId") != null) {
                 yocoPaymentService.confirmIntent(Long.parseLong(metadata.get("intentId").toString()), checkoutId);
+            } else if (checkoutId != null && !checkoutId.isBlank()) {
+                yocoPaymentService.confirmIntentByCheckoutId(checkoutId);
             }
             return ResponseEntity.ok().build();
         }
