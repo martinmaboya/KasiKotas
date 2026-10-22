@@ -162,7 +162,7 @@ public class OrderService {
                 && limitSnapshot.get().getLimitValue() <= 0) {
 
             throw new OrderLimitExceededException(
-                    "We are sold out for today. Please try again tomorrow."
+                    "Sorry " + customer.getFirstName() + ", we are sold out today. Please try again tomorrow."
             );
         }
 
@@ -191,14 +191,14 @@ public class OrderService {
             if (remainingCapacity <= 0) {
 
                 throw new OrderLimitExceededException(
-                        "We are sold out for today. Please try again tomorrow."
+                        "Sorry " + customer.getFirstName() + ", we are sold out today. Please try again tomorrow."
                 );
             }
 
             if (kotasInThisOrder > remainingCapacity) {
 
                 throw new OrderLimitExceededException(
-                        "Only " + remainingCapacity
+                        "Sorry " + customer.getFirstName() + ", we only have " + remainingCapacity
                                 + " kota left for today. Please reduce your quantity and try again."
                 );
             }
@@ -476,7 +476,7 @@ public class OrderService {
                         }
                         if (!stockDecreased) {
                                 throw new InsufficientStockException(
-                                                "Sorry, " + item.getProduct().getName()
+                                                "Sorry " + customer.getFirstName() + ", " + item.getProduct().getName()
                                                                 + " is sold out. Please remove it or choose another item."
                                 );
                         }
@@ -500,7 +500,7 @@ public class OrderService {
                                 String extraName = extraRepository.findById(extraId)
                                                 .map(Extra::getName).orElse("ID " + extraId);
                                 throw new InsufficientStockException(
-                                                "Sorry, " + extraName + " is sold out. Please remove it or choose another extra."
+                                                "Sorry " + customer.getFirstName() + ", " + extraName + " is sold out. Please remove it or choose another extra."
                                 );
                         }
                 }

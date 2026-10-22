@@ -64,7 +64,7 @@ public class GlobalExceptionHandler {
             Optional<DailyOrderLimit> limit = dailyOrderLimitService.getOrderLimit();
             if (limit.isPresent() && limit.get().getLimitValue() <= 0) {
                 return build(HttpStatus.CONFLICT,
-                        "We are sold out for today. Please try again tomorrow.",
+                        "Sorry, we are sold out for today. Please try again tomorrow.",
                         "ORDER_LIMIT_EXCEEDED",
                         request);
             }
