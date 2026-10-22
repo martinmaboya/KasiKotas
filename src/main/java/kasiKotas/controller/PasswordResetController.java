@@ -44,6 +44,7 @@ public class PasswordResetController {
             // Return success even if user doesn't exist (security best practice)
             response.put("success", true);
             response.put("message", "If the email exists, an OTP has been sent");
+            response.put("firstName", "");
             return ResponseEntity.ok(response);
         }
         
@@ -94,7 +95,8 @@ public class PasswordResetController {
 
         response.put("success", true);
         response.put("message", "OTP has been sent to your email");
-        
+        response.put("firstName", user.get().getFirstName());
+
         return ResponseEntity.ok(response);
     }
     
