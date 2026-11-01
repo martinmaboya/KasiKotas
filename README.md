@@ -76,4 +76,4 @@ mvn test
 
 ## Author
 
-**Nhlanhla Maboya**
+**Martin Maboya**
